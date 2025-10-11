@@ -1,0 +1,70 @@
+name: Auto-merge polls after manual PR merge
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'polls/**/*.csv'
+      - 'candidates.csv'
+      - 'polls.csv'
+      - 'poll_types.csv'
+
+jobs:
+  merge-polls:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements_pytests.txt 
+
+      - name: Run merge.py
+        id: merge
+        run: |
+          python merge.py
+
+      - name: Validate merged data
+        run: |
+          pytest tests/test_merge.py -v
+
+      - name: Commit merged files
+        id: commit
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add mj2027*.csv
+          git diff --staged --quiet || git commit -m "🤖 Fusion automatique des sondages (merge.py)"
+          git push
+
+      - name: Create summary comment
+        if: success()  
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const polls = fs.readFileSync('mj2027.csv', 'utf8').split('\n').length - 1;
+
+            github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: `✅ Fusion automatique terminée:\n- ${polls} entrées dans mj2027.csv\n- 5 fichiers par population générés`
+            });
+
+      - name: Notify on failure
+        if: failure()  
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: "❌ Échec de la fusion automatique. Voir les [logs du workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) pour plus de détails."
+            });

@@ -1,0 +1,45 @@
+name: Validate Poll Data
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'candidates.csv'
+      - 'polls.csv'
+      - 'poll_types.csv'
+      - 'polls/**/*.csv'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test_file: [
+          "test_poll_format.py",
+          "test_file_structure.py",
+          "test_data_integrity.py"
+        ]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run test
+        run: |
+          pytest tests/${{ matrix.test_file }} -v
+        
+      - name: Comment PR results
+        uses: actions/github-script@v6
+        if: failure()
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '❌ La validation des données a échoué. Consultez les logs pour plus de détails.'
+            })
