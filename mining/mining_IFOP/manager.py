@@ -2,7 +2,7 @@
 
 import pathlib
 from typing import Dict
-from mining.mining_IFOP.candidate import Candidate
+from candidate import Candidate
 
 
 class Manager:

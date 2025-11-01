@@ -5,7 +5,7 @@ import pathlib
 import re
 from typing import List, Tuple
 
-from mining.mining_IFOP.poll import CandidatePollInterface
+from poll import CandidatePollInterface
 
 # doc : https://pdfminersix.readthedocs.io/en/latest/reference/highlevel.html
 
