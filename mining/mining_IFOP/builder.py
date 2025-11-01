@@ -2,9 +2,9 @@
 
 import pathlib
 from typing import List
-from mining.mining_IFOP.poll import CandidatePollInterface
+from poll import CandidatePollInterface
 
-from mining.mining_IFOP.manager import Manager
+from manager import Manager
 
 
 class Builder:
@@ -24,6 +24,7 @@ class Builder:
                 unknown_candidates.append(result.get_name())
 
         if unknown_candidates:
+            print(unknown_candidates)
             raise ValueError(
                 f"Candidats inconnus : {', '.join(unknown_candidates)}. Veuillez compléter le fichier des candidats."
             )

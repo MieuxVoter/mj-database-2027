@@ -2,12 +2,12 @@
 
 import pathlib
 
-from mining.mining_IFOP.miner import Miner
-from mining.mining_IFOP.builder import Builder
+from miner import Miner
+from builder import Builder
 
 _SCRIPT_DIR = pathlib.Path(__file__).parent.resolve()
-_POLL_DIR = _SCRIPT_DIR.parent / "polls"
-_DEFAULT_CANDIDATE_PATH = _SCRIPT_DIR.parent / "candidates.csv"
+_POLL_DIR = _SCRIPT_DIR.parent.parent / "polls"
+_DEFAULT_CANDIDATE_PATH = _SCRIPT_DIR.parent.parent / "candidates.csv"
 
 if __name__ == "__main__":
     import argparse
