@@ -24,6 +24,7 @@ def test_poll_folders_declared_in_polls_csv():
     for item in os.listdir(polls_dir):
         item_path = os.path.join(polls_dir, item)
         if os.path.isdir(item_path):
+            # Use forward slash to match the format in polls.csv
             actual_folders.add(f"{polls_dir}/{item}")
     
     # Get all folders declared in polls.csv
