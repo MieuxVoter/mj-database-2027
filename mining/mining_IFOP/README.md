@@ -15,14 +15,15 @@ pip install pandas pdfminer.six
  ```
 MJ-DATABASE-2027/
 │
-├── mining_IFOP/
-│   ├── candidate.py
-│   ├── manager.py
-│   ├── miner.py
-│   ├── builder.py
-│   ├── poll.py
-│   ├── ifop_build.py
-│   └── pdfs/
+├── mining/
+│   └── mining_IFOP/
+│       ├── candidate.py
+│       ├── manager.py
+│       ├── miner.py
+│       ├── builder.py
+│       ├── poll.py
+│       ├── ifop_build.py
+│       └── pdfs/
 │
 ├── tests/
 │   └── test_poll_ifop.py
