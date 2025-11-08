@@ -147,7 +147,9 @@ Après avoir ajouté votre sondage :
 4. Testez le script `merge.py` pour vous assurer qu'il fonctionne correctement
 
 ### 9. Vous pouvez ouvrir une Pull Request (PR)
-Votre travail est prêt à être ajouté au dépôt principal et autres sondages. La CI (Github Action) se chargera d'executer 8.
+Votre travail est prêt à être ajouté au dépôt principal et autres sondages.
+On travaillera avec un fork (copie personnelle en ligne du repository)
+La CI (Github Action) se chargera d'executer 8 quand vous ajouterez un sondage.
 
 ### 10. Bonnes pratiques
 
