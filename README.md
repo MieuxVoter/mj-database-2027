@@ -11,7 +11,7 @@ Ce dépôt contient une base de données structurée des sondages d'opinion pour
 - 📈 **Suivre l'évolution** : Tracker l'évolution de l'opinion publique au fil du temps
 - 🎯 **Appliquer le Jugement Majoritaire** : Utiliser une méthodologie d'analyse plus riche que les intentions de vote classiques
 
-## 📋 Comment ajouter un sondage
+## 📋 Ajouter un sondage
 
 Ce guide [📋 Comment ajouter un sondage](./COMMENT_AJOUTER_UN_SONDAGE.md) vous explique étape par étape comment : Structurer vos données, Ajouter de nouveaux candidats ou instituts Respecter les conventions de nommage, Valider vos données.
 
