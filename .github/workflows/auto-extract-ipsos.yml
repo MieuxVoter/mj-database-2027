@@ -15,6 +15,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 jobs:
   extract-ipsos:
@@ -57,12 +58,43 @@ jobs:
           echo "IPSOS files detected:"
           echo "$IPSOS_FILES"
           
+          # Check if CSV files already exist for each HTML file
+          IPSOS_TO_EXTRACT=""
+          while IFS= read -r html_file; do
+            if [ -z "$html_file" ]; then
+              continue
+            fi
+            
+            # Get folder and poll_id
+            POLL_FOLDER=$(dirname "$html_file")
+            POLL_ID=$(basename "$POLL_FOLDER")
+            
+            # Check if corresponding CSV already exists
+            CSV_FILE="$POLL_FOLDER/${POLL_ID}_all.csv"
+            
+            if [ ! -f "$CSV_FILE" ]; then
+              echo "No CSV found for $html_file - will extract"
+              IPSOS_TO_EXTRACT="$IPSOS_TO_EXTRACT$html_file"$'\n'
+            else
+              echo "CSV already exists for $html_file - skipping"
+            fi
+          done <<< "$IPSOS_FILES"
+          
+          if [ -z "$IPSOS_TO_EXTRACT" ]; then
+            echo "No IPSOS files need extraction (CSV files already exist)"
+            echo "has_ipsos=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "IPSOS files to extract:"
+          echo "$IPSOS_TO_EXTRACT"
+          
           # Save to output
           echo "has_ipsos=true" >> $GITHUB_OUTPUT
           # Use proper multiline format for GitHub Actions
           {
             echo "ipsos_files<<EOF"
-            echo "$IPSOS_FILES"
+            echo "$IPSOS_TO_EXTRACT"
             echo "EOF"
           } >> $GITHUB_OUTPUT
       
@@ -180,6 +212,7 @@ jobs:
       
       - name: Post PR comment
         if: github.event_name == 'pull_request' && steps.detect.outputs.has_ipsos == 'true'
+        continue-on-error: true
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -207,30 +240,39 @@ jobs:
             summary += '   - Or wait for the merge workflow to run automatically\n\n';
             summary += '4. **Approve and merge** when ready ✅\n';
             
-            // Post or update comment
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-            
-            const botComment = comments.find(comment => 
-              comment.user.type === 'Bot' && 
-              comment.body.includes('🤖 IPSOS Poll Auto-Extraction')
-            );
-            
-            if (botComment) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComment.id,
-                body: summary
-              });
-            } else {
-              await github.rest.issues.createComment({
+            try {
+              // Post or update comment
+              const { data: comments } = await github.rest.issues.listComments({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                body: summary
               });
+              
+              const botComment = comments.find(comment => 
+                comment.user.type === 'Bot' && 
+                comment.body.includes('🤖 IPSOS Poll Auto-Extraction')
+              );
+              
+              if (botComment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: botComment.id,
+                  body: summary
+                });
+                console.log('Updated existing comment');
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: summary
+                });
+                console.log('Created new comment');
+              }
+            } catch (error) {
+              console.log('Could not post PR comment (likely permissions issue from fork)');
+              console.log('Summary that would have been posted:');
+              console.log(summary);
+              // Don't fail the workflow if comment posting fails
             }
