@@ -231,10 +231,10 @@ jobs:
               extractionDetails = fs.readFileSync('extraction_summary.md', 'utf8');
             }
             
-            // Create new PR
+            // Create new PR on MieuxVoter repository
             const { data: newPR } = await github.rest.pulls.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              owner: 'MieuxVoter',
+              repo: 'mj-database-2027',
               title: `🤖 Auto-extracted IPSOS data (from PR #${originalPR})`,
               head: newBranch,
               base: '${{ github.base_ref }}',
@@ -270,12 +270,12 @@ jobs:
             `
             });
             
-            console.log(\`✅ Created new PR: #\${newPR.number}\`);
+            console.log(\`✅ Created new PR on MieuxVoter: #\${newPR.number}\`);
             
             // Comment on original PR
             await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              owner: 'MieuxVoter',
+              repo: 'mj-database-2027',
               issue_number: originalPR,
               body: \`🤖 **Auto-extraction completed!**
             
