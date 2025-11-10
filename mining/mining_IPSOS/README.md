@@ -72,18 +72,25 @@ mkdir -p polls/ipsos_202512
 
 ### 2. Extraire les données
 ```bash
-python mining_IPSOS/extract_ipsos_from_html.py polls/ipsos_202512/source.html
+python mining/mining_IPSOS/extract_ipsos_from_html.py polls/ipsos_202512/source.html
 ```
+
+Le script extrait automatiquement :
+- ✅ **Données des candidats** (noms et pourcentages des 6 mentions)
+- ✅ **Taille de l'échantillon** (N=1000, "1000 personnes", etc.)
+- ✅ **Dates du sondage** (inférées du nom du dossier : ipsos_202512 → 2025-12-15)
+- ✅ **Ajout automatique dans polls.csv** (plus besoin de copier-coller !)
+
+⚠️ **Important** : Les dates sont inférées en utilisant le milieu du mois. Vérifiez avec le rapport IPSOS original.
 
 ### 3. Valider les données
 ```bash
-python mining_IPSOS/validate_poll.py polls/ipsos_202512/ipsos_202512_all.csv
+python mining/mining_IPSOS/validate_poll.py polls/ipsos_202512/ipsos_202512_all.csv
 ```
 
-### 4. Ajouter les métadonnées dans polls.csv
-```bash
-echo "ipsos_202512,pt1,1000,2025-12-04,2025-12-05,polls/ipsos_202512,all" >> polls.csv
-```
+### 4. (Optionnel) Ajuster les dates dans polls.csv
+
+Si vous connaissez les dates exactes du sondage, éditez `polls.csv` pour remplacer `2025-12-15` par les vraies dates.
 
 ### 5. Fusionner avec la base de données
 ```bash

@@ -8,8 +8,10 @@ import json
 import re
 import sys
 import csv
+import codecs
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
+from datetime import datetime
 
 
 def load_candidates_mapping(candidates_csv: Path = Path("candidates.csv")) -> Dict[str, str]:
@@ -56,6 +58,137 @@ def normalize_name(name: str) -> str:
     # Remove extra spaces and standardize
     name = " ".join(name.split())
     return name
+
+
+def extract_metadata_from_html(html_file: Path) -> Dict[str, Optional[str]]:
+    """
+    Extract poll metadata from HTML file (sample size, source, etc.).
+    
+    Note: Survey dates are typically NOT included in Flourish HTML exports
+    and must be added manually to polls.csv.
+    
+    Returns:
+        Dictionary with metadata keys: 'sample_size', 'source', 'footer_note'
+    """
+    with open(html_file, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    metadata: Dict[str, Optional[str]] = {
+        'sample_size': None,
+        'source': None,
+        'footer_note': None,
+        'start_date': None,
+        'end_date': None,
+    }
+    
+    # Extract footer note (contains sample size info)
+    footer_pattern = r'"layout\.footer_note":\s*"([^"]+)"'
+    footer_match = re.search(footer_pattern, content)
+    
+    if footer_match:
+        try:
+            footer = footer_match.group(1)
+            # Decode unicode escapes like \u003c
+            footer_decoded = codecs.decode(footer, 'unicode_escape')
+            # Remove HTML tags
+            footer_clean = re.sub(r'<[^>]+>', '', footer_decoded)
+            metadata['footer_note'] = footer_clean.strip()
+            
+            # Extract sample size (N=1000, n=1000, échantillon de 1000, 1000 personnes)
+            sample_match = re.search(r'(?:[Nn]|n)\s*=\s*(\d+)|(?:échantillon(?:\s+de)?|sample(?:\s+size)?(?:\s+de)?)\s*(?:de\s*)?(\d+)|(?:(\d+)\s*personnes)', footer_clean, re.IGNORECASE)
+            if sample_match:
+                # sample_match may have multiple groups - pick the first non-empty
+                sample = next((g for g in sample_match.groups() if g), None)
+                if sample:
+                    metadata['sample_size'] = sample
+        except:
+            pass
+    
+    # Extract source/title info
+    source_patterns = [
+        r'"layout\.header_title":\s*"([^"]+)"',
+        r'"layout\.footer_note_secondary":\s*"([^"]+)"',
+    ]
+    
+    for pattern in source_patterns:
+        source_match = re.search(pattern, content)
+        if source_match and source_match.group(1):
+            try:
+                source = source_match.group(1)
+                source_decoded = codecs.decode(source, 'unicode_escape')
+                source_clean = re.sub(r'<[^>]+>', '', source_decoded).strip()
+                if source_clean and not metadata['source']:
+                    metadata['source'] = source_clean
+            except:
+                pass
+
+    # Try to extract survey dates from footer or content
+    # 1) ISO dates: 2025-11-06 or 2025/11/06
+    iso_range = re.search(r'(\d{4}[-/]\d{2}[-/]\d{2})(?:\s*(?:to|\-|–|au|à|and)\s*(\d{4}[-/]\d{2}[-/]\d{2}))?', content)
+    if iso_range:
+        try:
+            start = iso_range.group(1).replace('/', '-')
+            metadata['start_date'] = datetime.fromisoformat(start).date().isoformat()
+            if iso_range.group(2):
+                end = iso_range.group(2).replace('/', '-')
+                metadata['end_date'] = datetime.fromisoformat(end).date().isoformat()
+            else:
+                metadata['end_date'] = metadata['start_date']
+            return metadata
+        except Exception:
+            pass
+
+    # 2) dd/mm/YYYY or d/m/YYYY patterns
+    dm_range = re.search(r'(\d{1,2}[\/\\]\d{1,2}[\/\\]\d{4})(?:\s*(?:to|\-|–|au|à|and)\s*(\d{1,2}[\/\\]\d{1,2}[\/\\]\d{4}))?', content)
+    if dm_range:
+        try:
+            s = dm_range.group(1).replace('\\', '/')
+            metadata['start_date'] = datetime.strptime(s, '%d/%m/%Y').date().isoformat()
+            if dm_range.group(2):
+                e = dm_range.group(2).replace('\\', '/')
+                metadata['end_date'] = datetime.strptime(e, '%d/%m/%Y').date().isoformat()
+            else:
+                metadata['end_date'] = metadata['start_date']
+            return metadata
+        except Exception:
+            pass
+
+    # 3) French textual dates like 'du 6 au 7 novembre 2025' or '6-7 novembre 2025' or '6 et 7 novembre 2025'
+    # month mapping
+    months = {
+        'janvier':1,'février':2,'fevrier':2,'mars':3,'avril':4,'mai':5,'juin':6,
+        'juillet':7,'août':8,'aout':8,'septembre':9,'octobre':10,'novembre':11,'décembre':12,'decembre':12
+    }
+    fr_range = re.search(r'du\s*(\d{1,2})\s*(?:au|à|a|et|-)\s*(\d{1,2})\s+([A-Za-zéûàôç]+)\s*(\d{4})', footer_clean or content, re.IGNORECASE)
+    if fr_range:
+        try:
+            d1 = int(fr_range.group(1))
+            d2 = int(fr_range.group(2))
+            month_name = fr_range.group(3).lower()
+            year = int(fr_range.group(4))
+            m = months.get(month_name)
+            if m:
+                metadata['start_date'] = datetime(year, m, d1).date().isoformat()
+                metadata['end_date'] = datetime(year, m, d2).date().isoformat()
+                return metadata
+        except Exception:
+            pass
+
+    # 4) single day like '6 novembre 2025'
+    single_fr = re.search(r'(\d{1,2})\s+([A-Za-zéûàôç]+)\s*(\d{4})', footer_clean or content, re.IGNORECASE)
+    if single_fr:
+        try:
+            d = int(single_fr.group(1))
+            month_name = single_fr.group(2).lower()
+            year = int(single_fr.group(3))
+            m = months.get(month_name)
+            if m:
+                metadata['start_date'] = datetime(year, m, d).date().isoformat()
+                metadata['end_date'] = metadata['start_date']
+        except Exception:
+            pass
+    
+    return metadata
 
 
 def extract_data_from_html(html_file: Path) -> List[Dict]:
@@ -219,6 +352,32 @@ def convert_to_csv(data: List[Dict], output_file: Path, candidates_mapping: Dict
         print("  NC,Nouveau,Candidat,Parti,,,")
 
 
+def infer_dates_from_folder(folder_name: str) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Infer survey dates from folder name like 'ipsos_202511' or 'elabe_202412'.
+    Assumes format: <institute>_YYYYMM
+    
+    Returns start_date and end_date in ISO format, or (None, None) if cannot parse.
+    Uses mid-month (15th) as a reasonable default.
+    """
+    match = re.search(r'(\d{4})(\d{2})', folder_name)
+    if match:
+        try:
+            year = int(match.group(1))
+            month = int(match.group(2))
+            # Use middle of the month as default survey date
+            day = 15
+            # Check if valid date
+            date_obj = datetime(year, month, day)
+            start_date = date_obj.date().isoformat()
+            # Assume 1-day survey by default
+            end_date = start_date
+            return start_date, end_date
+        except (ValueError, OverflowError):
+            pass
+    return None, None
+
+
 def main():
     """Main function."""
     if len(sys.argv) < 2:
@@ -244,7 +403,80 @@ def main():
         # Load candidates mapping from CSV
         candidates_mapping = load_candidates_mapping()
         
+        # Extract metadata from HTML
+        print("\n" + "="*80)
+        print("EXTRACTING METADATA")
+        print("="*80)
+        metadata = extract_metadata_from_html(html_file)
+        
+        # If dates not found in HTML, infer from folder name
+        if not metadata['start_date'] or not metadata['end_date']:
+            inferred_start, inferred_end = infer_dates_from_folder(html_file.parent.name)
+            if inferred_start:
+                metadata['start_date'] = inferred_start
+                metadata['end_date'] = inferred_end
+                print(f"⚠ Survey dates inferred from folder name: {inferred_start} to {inferred_end}")
+                print(f"  (Using mid-month default. Verify with original source if needed.)")
+        
+        if metadata['sample_size']:
+            print(f"✓ Sample size: {metadata['sample_size']} personnes")
+        else:
+            print("⚠ Sample size: Not found in HTML")
+        
+        if metadata['source']:
+            print(f"✓ Source: {metadata['source']}")
+        else:
+            print("⚠ Source: Not found in HTML")
+        
+        if metadata['start_date'] and metadata['end_date']:
+            print(f"✓ Survey dates: {metadata['start_date']} to {metadata['end_date']}")
+        else:
+            print("⚠ Survey dates: Could not determine from HTML or folder name")
+        
+        # Generate polls.csv entry suggestion
+        poll_id = html_file.parent.name
+        poll_type = "pt1"  # IPSOS uses pt1 (6 mentions)
+        nb_people = metadata['sample_size'] or '1000'
+        start_date = metadata['start_date'] or 'YYYY-MM-DD'
+        end_date = metadata['end_date'] or 'YYYY-MM-DD'
+        folder = html_file.parent
+        population = "all"
+        
+        polls_csv_entry = f"{poll_id},{poll_type},{nb_people},{start_date},{end_date},{folder},{population}"
+        
+        print("\n" + "="*80)
+        print("UPDATING POLLS.CSV")
+        print("="*80)
+        
+        # Check if entry already exists in polls.csv
+        polls_csv_path = Path("polls.csv")
+        entry_exists = False
+        
+        if polls_csv_path.exists():
+            with open(polls_csv_path, 'r', encoding='utf-8') as f:
+                existing_content = f.read()
+                if poll_id in existing_content:
+                    entry_exists = True
+        
+        if entry_exists:
+            print(f"⚠ Entry for {poll_id} already exists in polls.csv")
+            print(f"  Suggested entry: {polls_csv_entry}")
+            print(f"  Skipping to avoid duplicates.")
+        else:
+            # Append to polls.csv
+            with open(polls_csv_path, 'a', encoding='utf-8') as f:
+                f.write(f"{polls_csv_entry}\n")
+            print(f"✓ Added entry to polls.csv:")
+            print(f"  {polls_csv_entry}")
+            if metadata['start_date']:
+                print("\n⚠ Note: Survey dates were inferred from folder name. Please verify with the original IPSOS report.")
+            else:
+                print("\n⚠ IMPORTANT: Update polls.csv with actual survey dates from the IPSOS report.")
+        
         # Extract data from HTML
+        print("\n" + "="*80)
+        print("EXTRACTING CANDIDATE DATA")
+        print("="*80)
         data = extract_data_from_html(html_file)
         
         # Convert to CSV
@@ -253,8 +485,9 @@ def main():
         print(f"\n✓ All done! CSV file created at: {output_file}")
         print(f"\nNext steps:")
         print(f"  1. Review the CSV file: {output_file}")
-        print(f"  2. Add metadata to polls.csv")
+        print(f"  2. Verify survey dates in polls.csv if needed")
         print(f"  3. Run merge.py to update the database")
+
         
     except Exception as e:
         print(f"\n✗ Error: {e}")
