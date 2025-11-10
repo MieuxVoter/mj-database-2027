@@ -32,58 +32,48 @@ jobs:
       - name: Detect new HTML files in polls folder
         id: detect
         run: |
-          # Get list of changed files
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            # Fetch the base branch to compare against
-            git fetch origin ${{ github.base_ref }}
-            CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '^polls/.+\.html$' || true)
-          else
-            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD | grep -E '^polls/.+\.html$' || true)
-          fi
+          echo "Scanning for IPSOS folders with HTML files but no CSV files..."
           
-          echo "Changed HTML files:"
-          echo "$CHANGED_FILES"
-          
-          # Filter for IPSOS files
-          IPSOS_FILES=$(echo "$CHANGED_FILES" | grep -i "ipsos" || true)
-          
-          if [ -z "$IPSOS_FILES" ]; then
-            echo "No IPSOS HTML files detected"
-            echo "has_ipsos=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          
-          echo "IPSOS files detected:"
-          echo "$IPSOS_FILES"
-          
-          # Check if CSV files already exist for each HTML file
+          # Find all IPSOS folders in the current branch
           IPSOS_TO_EXTRACT=""
-          while IFS= read -r html_file; do
-            if [ -z "$html_file" ]; then
+          
+          for ipsos_folder in polls/ipsos_*/; do
+            if [ ! -d "$ipsos_folder" ]; then
               continue
             fi
             
-            # Get folder and poll_id
-            POLL_FOLDER=$(dirname "$html_file")
-            POLL_ID=$(basename "$POLL_FOLDER")
+            POLL_ID=$(basename "$ipsos_folder")
+            echo "Checking folder: $ipsos_folder (poll_id: $POLL_ID)"
+            
+            # Check if there's at least one HTML file
+            HTML_FILES=$(find "$ipsos_folder" -maxdepth 1 -name "*.html" -type f)
+            
+            if [ -z "$HTML_FILES" ]; then
+              echo "  No HTML files found - skipping"
+              continue
+            fi
             
             # Check if corresponding CSV already exists
-            CSV_FILE="$POLL_FOLDER/${POLL_ID}_all.csv"
+            CSV_FILE="$ipsos_folder/${POLL_ID}_all.csv"
             
             if [ ! -f "$CSV_FILE" ]; then
-              echo "No CSV found for $html_file - will extract"
-              IPSOS_TO_EXTRACT="$IPSOS_TO_EXTRACT$html_file"$'\n'
+              echo "  ✓ HTML file(s) found but no CSV - will extract"
+              # Use the first HTML file found (typically source.html)
+              FIRST_HTML=$(echo "$HTML_FILES" | head -n 1)
+              IPSOS_TO_EXTRACT="$IPSOS_TO_EXTRACT$FIRST_HTML"$'\n'
             else
-              echo "CSV already exists for $html_file - skipping"
+              echo "  CSV already exists - skipping"
             fi
-          done <<< "$IPSOS_FILES"
+          done
           
           if [ -z "$IPSOS_TO_EXTRACT" ]; then
-            echo "No IPSOS files need extraction (CSV files already exist)"
+            echo ""
+            echo "No IPSOS folders need extraction (all have CSV files)"
             echo "has_ipsos=false" >> $GITHUB_OUTPUT
             exit 0
           fi
           
+          echo ""
           echo "IPSOS files to extract:"
           echo "$IPSOS_TO_EXTRACT"
           
