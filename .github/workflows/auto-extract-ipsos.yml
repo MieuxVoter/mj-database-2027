@@ -167,17 +167,11 @@ jobs:
             echo "No changes to commit"
             echo "has_changes=false" >> $GITHUB_ENV
           else
-            COMMIT_MSG="🤖 Auto-extract IPSOS poll data
-
-Extracted polls: ${{ steps.extract.outputs.extracted_polls }}
-
-- Generated CSV files with candidate data
-- Updated polls.csv with metadata
-- Dates inferred from folder names (please verify)
-
-Co-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
-            
-            git commit -m "$COMMIT_MSG"
+            # Commit with simple message
+            git commit -m "Auto-extract IPSOS poll data" \
+                       -m "Generated CSV files with candidate data and updated polls.csv." \
+                       -m "Dates inferred from folder names (please verify with original IPSOS report)." \
+                       -m "Co-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
             
             # Push to the current branch
             git push origin HEAD:${{ github.head_ref || github.ref_name }}
