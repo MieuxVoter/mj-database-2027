@@ -21,7 +21,8 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.head_ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          # Always use the base repository (MieuxVoter), not the fork
+          repository: ${{ github.event.pull_request.base.repo.full_name || github.repository }}
           token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Set up Python
@@ -194,7 +195,7 @@ jobs:
         continue-on-error: true
         run: |
           echo "⚠️ Automatic push to '${{ github.head_ref }}' failed due to permissions."
-          echo "Creating a new branch with extracted data..."
+          echo "Creating a new branch with extracted data on MieuxVoter repository..."
           
           # Create a new branch name with timestamp
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
@@ -203,11 +204,14 @@ jobs:
           echo "New branch: $NEW_BRANCH"
           echo "new_branch=$NEW_BRANCH" >> $GITHUB_OUTPUT
           
-          # Create and push to new branch
-          git checkout -b "$NEW_BRANCH"
-          git push origin "$NEW_BRANCH"
+          # Push to MieuxVoter repository (not fork)
+          REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/MieuxVoter/mj-database-2027.git"
           
-          echo "✅ Successfully pushed to $NEW_BRANCH"
+          # Create and push to new branch on MieuxVoter
+          git checkout -b "$NEW_BRANCH"
+          git push "$REPO_URL" "$NEW_BRANCH"
+          
+          echo "✅ Successfully pushed to MieuxVoter/$NEW_BRANCH"
       
       - name: Create new PR with extracted data
         if: steps.detect.outputs.has_ipsos == 'true' && steps.fallback.outcome == 'success'
