@@ -34,7 +34,9 @@ jobs:
         run: |
           # Get list of changed files
           if [ "${{ github.event_name }}" == "pull_request" ]; then
-            CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...${{ github.sha }} | grep -E '^polls/.+\.html$' || true)
+            # Fetch the base branch to compare against
+            git fetch origin ${{ github.base_ref }}
+            CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '^polls/.+\.html$' || true)
           else
             CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD | grep -E '^polls/.+\.html$' || true)
           fi
