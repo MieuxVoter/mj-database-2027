@@ -1,0 +1,371 @@
+name: Auto-extract IPSOS polls
+
+on:
+  pull_request:
+    paths:
+      - 'polls/**/source.html'
+      - 'polls/**/*.html'
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  extract-ipsos:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Checkout the PR head from wherever it is (fork or main repo)
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Detect new HTML files in polls folder
+        id: detect
+        run: |
+          echo "Scanning for IPSOS folders with HTML files but no CSV files..."
+          
+          # Find all IPSOS folders in the current branch
+          IPSOS_TO_EXTRACT=""
+          
+          for ipsos_folder in polls/ipsos_*/; do
+            if [ ! -d "$ipsos_folder" ]; then
+              continue
+            fi
+            
+            POLL_ID=$(basename "$ipsos_folder")
+            echo "Checking folder: $ipsos_folder (poll_id: $POLL_ID)"
+            
+            # Check if there's at least one HTML file
+            HTML_FILES=$(find "$ipsos_folder" -maxdepth 1 -name "*.html" -type f)
+            
+            if [ -z "$HTML_FILES" ]; then
+              echo "  No HTML files found - skipping"
+              continue
+            fi
+            
+            # Check if corresponding CSV already exists
+            CSV_FILE="$ipsos_folder/${POLL_ID}_all.csv"
+            
+            if [ ! -f "$CSV_FILE" ]; then
+              echo "  ✓ HTML file(s) found but no CSV - will extract"
+              # Use the first HTML file found (typically source.html)
+              FIRST_HTML=$(echo "$HTML_FILES" | head -n 1)
+              IPSOS_TO_EXTRACT="$IPSOS_TO_EXTRACT$FIRST_HTML"$'\n'
+            else
+              echo "  CSV already exists - skipping"
+            fi
+          done
+          
+          if [ -z "$IPSOS_TO_EXTRACT" ]; then
+            echo ""
+            echo "No IPSOS folders need extraction (all have CSV files)"
+            echo "has_ipsos=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo ""
+          echo "IPSOS files to extract:"
+          echo "$IPSOS_TO_EXTRACT"
+          
+          # Save to output
+          echo "has_ipsos=true" >> $GITHUB_OUTPUT
+          # Use proper multiline format for GitHub Actions
+          {
+            echo "ipsos_files<<EOF"
+            echo "$IPSOS_TO_EXTRACT"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+      
+      - name: Extract IPSOS poll data
+        if: steps.detect.outputs.has_ipsos == 'true'
+        id: extract
+        run: |
+          echo "## Extraction Results" > extraction_summary.md
+          echo "" >> extraction_summary.md
+          
+          EXTRACTION_SUCCESS=true
+          EXTRACTED_POLLS=""
+          
+          # Process each IPSOS file
+          while IFS= read -r html_file; do
+            if [ -z "$html_file" ]; then
+              continue
+            fi
+            
+            echo "Processing: $html_file"
+            echo "### 📊 Processing: \`$html_file\`" >> extraction_summary.md
+            
+            # Run extraction script
+            if python mining/mining_IPSOS/extract_ipsos_from_html.py "$html_file" 2>&1 | tee extraction_output.txt; then
+              echo "✅ **Extraction successful**" >> extraction_summary.md
+              echo "" >> extraction_summary.md
+              
+              # Extract poll_id from folder name
+              POLL_FOLDER=$(dirname "$html_file")
+              POLL_ID=$(basename "$POLL_FOLDER")
+              EXTRACTED_POLLS="$EXTRACTED_POLLS $POLL_ID"
+              
+              # Show extracted data summary
+              CSV_FILE="$POLL_FOLDER/${POLL_ID}_all.csv"
+              if [ -f "$CSV_FILE" ]; then
+                CANDIDATE_COUNT=$(tail -n +2 "$CSV_FILE" | wc -l)
+                echo "- **Candidates extracted**: $CANDIDATE_COUNT" >> extraction_summary.md
+                echo "- **CSV file**: \`$CSV_FILE\`" >> extraction_summary.md
+              fi
+              
+              # Check polls.csv entry
+              if grep -q "$POLL_ID" polls.csv; then
+                POLL_ENTRY=$(grep "$POLL_ID" polls.csv | tail -n 1)
+                echo "- **polls.csv entry**: \`$POLL_ENTRY\`" >> extraction_summary.md
+                
+                # Extract dates for verification warning
+                START_DATE=$(echo "$POLL_ENTRY" | cut -d',' -f4)
+                END_DATE=$(echo "$POLL_ENTRY" | cut -d',' -f5)
+                echo "" >> extraction_summary.md
+                echo "⚠️ **Please verify survey dates**: \`$START_DATE\` to \`$END_DATE\`" >> extraction_summary.md
+                echo "   (Dates were inferred from folder name. Check the original IPSOS report.)" >> extraction_summary.md
+              fi
+              
+              echo "" >> extraction_summary.md
+            else
+              echo "❌ **Extraction failed**" >> extraction_summary.md
+              echo "\`\`\`" >> extraction_summary.md
+              tail -20 extraction_output.txt >> extraction_summary.md
+              echo "\`\`\`" >> extraction_summary.md
+              echo "" >> extraction_summary.md
+              EXTRACTION_SUCCESS=false
+            fi
+          done <<< "${{ steps.detect.outputs.ipsos_files }}"
+          
+          echo "extraction_success=$EXTRACTION_SUCCESS" >> $GITHUB_OUTPUT
+          echo "extracted_polls=$EXTRACTED_POLLS" >> $GITHUB_OUTPUT
+      
+      - name: Run validation
+        if: steps.detect.outputs.has_ipsos == 'true' && steps.extract.outputs.extraction_success == 'true'
+        run: |
+          echo "## 🔍 Validation Results" >> extraction_summary.md
+          echo "" >> extraction_summary.md
+          
+          for poll_id in ${{ steps.extract.outputs.extracted_polls }}; do
+            CSV_FILE="polls/$poll_id/${poll_id}_all.csv"
+            if [ -f "$CSV_FILE" ]; then
+              echo "### Validating \`$CSV_FILE\`" >> extraction_summary.md
+              if python mining/mining_IPSOS/validate_poll.py "$CSV_FILE" 2>&1 | tee validation_output.txt; then
+                echo "✅ **Validation passed**" >> extraction_summary.md
+              else
+                echo "⚠️ **Validation warnings**:" >> extraction_summary.md
+                echo "\`\`\`" >> extraction_summary.md
+                cat validation_output.txt >> extraction_summary.md
+                echo "\`\`\`" >> extraction_summary.md
+              fi
+              echo "" >> extraction_summary.md
+            fi
+          done
+      
+      - name: Commit and push changes
+        if: steps.detect.outputs.has_ipsos == 'true' && steps.extract.outputs.extraction_success == 'true'
+        continue-on-error: true
+        id: commit
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: |
+            Auto-extract IPSOS poll data
+            
+            Generated CSV files with candidate data and updated polls.csv.
+            Dates inferred from folder names (please verify with original IPSOS report).
+          commit_user_name: github-actions[bot]
+          commit_user_email: github-actions[bot]@users.noreply.github.com
+          commit_author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
+          file_pattern: 'polls/ polls.csv'
+      
+      - name: Create fallback branch and PR if push fails
+        if: steps.detect.outputs.has_ipsos == 'true' && steps.extract.outputs.extraction_success == 'true' && steps.commit.outcome == 'failure'
+        id: fallback
+        continue-on-error: true
+        run: |
+          echo "⚠️ Automatic push to '${{ github.head_ref }}' failed due to permissions."
+          echo "Creating a new branch with extracted data on MieuxVoter repository..."
+          
+          # Create a new branch name with timestamp
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          NEW_BRANCH="bot/ipsos-auto-extract-${TIMESTAMP}"
+          
+          echo "New branch: $NEW_BRANCH"
+          echo "new_branch=$NEW_BRANCH" >> $GITHUB_OUTPUT
+          
+          # Push to MieuxVoter repository (not fork)
+          REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/MieuxVoter/mj-database-2027.git"
+          
+          # Create and push to new branch on MieuxVoter
+          git checkout -b "$NEW_BRANCH"
+          git push "$REPO_URL" "$NEW_BRANCH"
+          
+          echo "✅ Successfully pushed to MieuxVoter/$NEW_BRANCH"
+      
+      - name: Create new PR with extracted data
+        if: steps.detect.outputs.has_ipsos == 'true' && steps.fallback.outcome == 'success'
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const newBranch = '${{ steps.fallback.outputs.new_branch }}';
+            const originalPR = context.payload.pull_request.number;
+            const originalBranch = '${{ github.head_ref }}';
+            
+            // Read extraction summary
+            const fs = require('fs');
+            let extractionDetails = '';
+            if (fs.existsSync('extraction_summary.md')) {
+              extractionDetails = fs.readFileSync('extraction_summary.md', 'utf8');
+            }
+            
+            // Create new PR on MieuxVoter repository
+            const { data: newPR } = await github.rest.pulls.create({
+              owner: 'MieuxVoter',
+              repo: 'mj-database-2027',
+              title: `🤖 Auto-extracted IPSOS data (from PR #${originalPR})`,
+              head: newBranch,
+              base: '${{ github.base_ref }}',
+              body: `# 🤖 Automated IPSOS Poll Extraction
+            
+            This PR was automatically created because I couldn't push to the original PR branch.
+            
+            ## 📋 Original PR
+            - **Original PR**: #${originalPR}
+            - **Original Branch**: \`${originalBranch}\`
+            - **Reason for new PR**: GitHub Actions doesn't have write permission to the original branch
+            
+            ## ✅ What was extracted
+            
+            ${extractionDetails}
+            
+            ## 🔄 What to do next
+            
+            **Option 1: Merge this PR (recommended)**
+            - Review the extracted data below
+            - Verify survey dates in \`polls.csv\`
+            - Merge this PR to get the data into main
+            - Close the original PR #${originalPR}
+            
+            **Option 2: Manually apply to original PR**
+            - Download the changes from this PR
+            - Apply them to your original branch
+            - Close this automated PR
+            
+            ---
+            
+            💡 **Tip**: To avoid this in the future, enable "Read and write permissions" for GitHub Actions in your repository settings.
+            `
+            });
+            
+            console.log(\`✅ Created new PR on MieuxVoter: #\${newPR.number}\`);
+            
+            // Comment on original PR
+            await github.rest.issues.createComment({
+              owner: 'MieuxVoter',
+              repo: 'mj-database-2027',
+              issue_number: originalPR,
+              body: \`🤖 **Auto-extraction completed!**
+            
+            I successfully extracted the IPSOS poll data, but I couldn't push to this branch due to permissions.
+            
+            ✅ **I've created a new PR with the extracted data**: #\${newPR.number}
+            
+            You can either:
+            1. Merge the new PR #\${newPR.number} and close this one
+            2. Or pull the changes from the new PR into this branch
+            
+            The extracted files are also available as artifacts on this workflow run.\`
+            });
+            
+            console.log('✅ Added comment to original PR');
+      
+      - name: Upload extracted files as artifacts
+        if: steps.detect.outputs.has_ipsos == 'true' && steps.extract.outputs.extraction_success == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: extracted-ipsos-data
+          path: |
+            polls/ipsos_*/ipsos_*_all.csv
+            polls.csv
+            extraction_summary.md
+          retention-days: 30
+      
+      - name: Post PR comment
+        if: github.event_name == 'pull_request' && steps.detect.outputs.has_ipsos == 'true'
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            
+            // Read the extraction summary
+            let summary = '# 🤖 IPSOS Poll Auto-Extraction\n\n';
+            
+            if (fs.existsSync('extraction_summary.md')) {
+              summary += fs.readFileSync('extraction_summary.md', 'utf8');
+            }
+            
+            summary += '\n---\n\n';
+            summary += '## 📋 Next Steps\n\n';
+            summary += '1. **Verify survey dates** in `polls.csv`\n';
+            summary += '   - Dates are inferred from folder names (mid-month default)\n';
+            summary += '   - Check the original IPSOS report for exact dates\n';
+            summary += '   - Edit `polls.csv` if needed\n\n';
+            summary += '2. **Review extracted data**\n';
+            summary += '   - Check CSV files for accuracy\n';
+            summary += '   - Verify candidate mappings\n\n';
+            summary += '3. **Run merge**\n';
+            summary += '   - After verifying dates, run `python merge.py` locally\n';
+            summary += '   - Or wait for the merge workflow to run automatically\n\n';
+            summary += '4. **Approve and merge** when ready ✅\n';
+            
+            try {
+              // Post or update comment
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              });
+              
+              const botComment = comments.find(comment => 
+                comment.user.type === 'Bot' && 
+                comment.body.includes('🤖 IPSOS Poll Auto-Extraction')
+              );
+              
+              if (botComment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: botComment.id,
+                  body: summary
+                });
+                console.log('Updated existing comment');
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: summary
+                });
+                console.log('Created new comment');
+              }
+            } catch (error) {
+              console.log('Could not post PR comment (likely permissions issue from fork)');
+              console.log('Summary that would have been posted:');
+              console.log(summary);
+              // Don't fail the workflow if comment posting fails
+            }

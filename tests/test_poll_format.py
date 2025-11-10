@@ -14,6 +14,9 @@ def test_poll_filename_format():
 
                 if os.path.isfile(file_path):
 
+                    if file.endswith(".html"):
+                        continue
+
                     assert "_" in file, f"Nom de fichier invalide dans {item}/ : {file}"
 
                     assert file.endswith(".csv"), f"Extension invalide dans {item}/ : {file}"
