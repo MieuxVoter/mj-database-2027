@@ -13,7 +13,7 @@ def test_poll_filename_format():
                 file_path = os.path.join(item_path, file)
 
                 if os.path.isfile(file_path):
-                    
+
                     if file.endswith(".html"):
                         continue
 
