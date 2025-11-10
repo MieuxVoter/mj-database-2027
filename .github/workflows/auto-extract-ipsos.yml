@@ -174,6 +174,8 @@ jobs:
       
       - name: Commit and push changes
         if: steps.detect.outputs.has_ipsos == 'true' && steps.extract.outputs.extraction_success == 'true'
+        continue-on-error: true
+        id: commit
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: |
@@ -185,6 +187,117 @@ jobs:
           commit_user_email: github-actions[bot]@users.noreply.github.com
           commit_author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
           file_pattern: 'polls/ polls.csv'
+      
+      - name: Create fallback branch and PR if push fails
+        if: steps.detect.outputs.has_ipsos == 'true' && steps.extract.outputs.extraction_success == 'true' && steps.commit.outcome == 'failure'
+        id: fallback
+        continue-on-error: true
+        run: |
+          echo "⚠️ Automatic push to '${{ github.head_ref }}' failed due to permissions."
+          echo "Creating a new branch with extracted data..."
+          
+          # Create a new branch name with timestamp
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          NEW_BRANCH="bot/ipsos-auto-extract-${TIMESTAMP}"
+          
+          echo "New branch: $NEW_BRANCH"
+          echo "new_branch=$NEW_BRANCH" >> $GITHUB_OUTPUT
+          
+          # Create and push to new branch
+          git checkout -b "$NEW_BRANCH"
+          git push origin "$NEW_BRANCH"
+          
+          echo "✅ Successfully pushed to $NEW_BRANCH"
+      
+      - name: Create new PR with extracted data
+        if: steps.detect.outputs.has_ipsos == 'true' && steps.fallback.outcome == 'success'
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const newBranch = '${{ steps.fallback.outputs.new_branch }}';
+            const originalPR = context.payload.pull_request.number;
+            const originalBranch = '${{ github.head_ref }}';
+            
+            // Read extraction summary
+            const fs = require('fs');
+            let extractionDetails = '';
+            if (fs.existsSync('extraction_summary.md')) {
+              extractionDetails = fs.readFileSync('extraction_summary.md', 'utf8');
+            }
+            
+            // Create new PR
+            const { data: newPR } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🤖 Auto-extracted IPSOS data (from PR #${originalPR})`,
+              head: newBranch,
+              base: '${{ github.base_ref }}',
+              body: `# 🤖 Automated IPSOS Poll Extraction
+            
+            This PR was automatically created because I couldn't push to the original PR branch.
+            
+            ## 📋 Original PR
+            - **Original PR**: #${originalPR}
+            - **Original Branch**: \`${originalBranch}\`
+            - **Reason for new PR**: GitHub Actions doesn't have write permission to the original branch
+            
+            ## ✅ What was extracted
+            
+            ${extractionDetails}
+            
+            ## 🔄 What to do next
+            
+            **Option 1: Merge this PR (recommended)**
+            - Review the extracted data below
+            - Verify survey dates in \`polls.csv\`
+            - Merge this PR to get the data into main
+            - Close the original PR #${originalPR}
+            
+            **Option 2: Manually apply to original PR**
+            - Download the changes from this PR
+            - Apply them to your original branch
+            - Close this automated PR
+            
+            ---
+            
+            💡 **Tip**: To avoid this in the future, enable "Read and write permissions" for GitHub Actions in your repository settings.
+            `
+            });
+            
+            console.log(\`✅ Created new PR: #\${newPR.number}\`);
+            
+            // Comment on original PR
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: originalPR,
+              body: \`🤖 **Auto-extraction completed!**
+            
+            I successfully extracted the IPSOS poll data, but I couldn't push to this branch due to permissions.
+            
+            ✅ **I've created a new PR with the extracted data**: #\${newPR.number}
+            
+            You can either:
+            1. Merge the new PR #\${newPR.number} and close this one
+            2. Or pull the changes from the new PR into this branch
+            
+            The extracted files are also available as artifacts on this workflow run.\`
+            });
+            
+            console.log('✅ Added comment to original PR');
+      
+      - name: Upload extracted files as artifacts
+        if: steps.detect.outputs.has_ipsos == 'true' && steps.extract.outputs.extraction_success == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: extracted-ipsos-data
+          path: |
+            polls/ipsos_*/ipsos_*_all.csv
+            polls.csv
+            extraction_summary.md
+          retention-days: 30
       
       - name: Post PR comment
         if: github.event_name == 'pull_request' && steps.detect.outputs.has_ipsos == 'true'
