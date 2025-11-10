@@ -1,0 +1,242 @@
+name: Auto-extract IPSOS polls
+
+on:
+  pull_request:
+    paths:
+      - 'polls/**/source.html'
+      - 'polls/**/*.html'
+  push:
+    branches:
+      - main
+    paths:
+      - 'polls/**/source.html'
+      - 'polls/**/*.html'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  extract-ipsos:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Detect new HTML files in polls folder
+        id: detect
+        run: |
+          # Get list of changed files
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...${{ github.sha }} | grep -E '^polls/.+\.html$' || true)
+          else
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD | grep -E '^polls/.+\.html$' || true)
+          fi
+          
+          echo "Changed HTML files:"
+          echo "$CHANGED_FILES"
+          
+          # Filter for IPSOS files
+          IPSOS_FILES=$(echo "$CHANGED_FILES" | grep -i "ipsos" || true)
+          
+          if [ -z "$IPSOS_FILES" ]; then
+            echo "No IPSOS HTML files detected"
+            echo "has_ipsos=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "IPSOS files detected:"
+          echo "$IPSOS_FILES"
+          
+          # Save to output
+          echo "has_ipsos=true" >> $GITHUB_OUTPUT
+          # Use proper multiline format for GitHub Actions
+          {
+            echo "ipsos_files<<EOF"
+            echo "$IPSOS_FILES"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+      
+      - name: Extract IPSOS poll data
+        if: steps.detect.outputs.has_ipsos == 'true'
+        id: extract
+        run: |
+          echo "## Extraction Results" > extraction_summary.md
+          echo "" >> extraction_summary.md
+          
+          EXTRACTION_SUCCESS=true
+          EXTRACTED_POLLS=""
+          
+          # Process each IPSOS file
+          while IFS= read -r html_file; do
+            if [ -z "$html_file" ]; then
+              continue
+            fi
+            
+            echo "Processing: $html_file"
+            echo "### 📊 Processing: \`$html_file\`" >> extraction_summary.md
+            
+            # Run extraction script
+            if python mining/mining_IPSOS/extract_ipsos_from_html.py "$html_file" 2>&1 | tee extraction_output.txt; then
+              echo "✅ **Extraction successful**" >> extraction_summary.md
+              echo "" >> extraction_summary.md
+              
+              # Extract poll_id from folder name
+              POLL_FOLDER=$(dirname "$html_file")
+              POLL_ID=$(basename "$POLL_FOLDER")
+              EXTRACTED_POLLS="$EXTRACTED_POLLS $POLL_ID"
+              
+              # Show extracted data summary
+              CSV_FILE="$POLL_FOLDER/${POLL_ID}_all.csv"
+              if [ -f "$CSV_FILE" ]; then
+                CANDIDATE_COUNT=$(tail -n +2 "$CSV_FILE" | wc -l)
+                echo "- **Candidates extracted**: $CANDIDATE_COUNT" >> extraction_summary.md
+                echo "- **CSV file**: \`$CSV_FILE\`" >> extraction_summary.md
+              fi
+              
+              # Check polls.csv entry
+              if grep -q "$POLL_ID" polls.csv; then
+                POLL_ENTRY=$(grep "$POLL_ID" polls.csv | tail -n 1)
+                echo "- **polls.csv entry**: \`$POLL_ENTRY\`" >> extraction_summary.md
+                
+                # Extract dates for verification warning
+                START_DATE=$(echo "$POLL_ENTRY" | cut -d',' -f4)
+                END_DATE=$(echo "$POLL_ENTRY" | cut -d',' -f5)
+                echo "" >> extraction_summary.md
+                echo "⚠️ **Please verify survey dates**: \`$START_DATE\` to \`$END_DATE\`" >> extraction_summary.md
+                echo "   (Dates were inferred from folder name. Check the original IPSOS report.)" >> extraction_summary.md
+              fi
+              
+              echo "" >> extraction_summary.md
+            else
+              echo "❌ **Extraction failed**" >> extraction_summary.md
+              echo "\`\`\`" >> extraction_summary.md
+              tail -20 extraction_output.txt >> extraction_summary.md
+              echo "\`\`\`" >> extraction_summary.md
+              echo "" >> extraction_summary.md
+              EXTRACTION_SUCCESS=false
+            fi
+          done <<< "${{ steps.detect.outputs.ipsos_files }}"
+          
+          echo "extraction_success=$EXTRACTION_SUCCESS" >> $GITHUB_OUTPUT
+          echo "extracted_polls=$EXTRACTED_POLLS" >> $GITHUB_OUTPUT
+      
+      - name: Run validation
+        if: steps.detect.outputs.has_ipsos == 'true' && steps.extract.outputs.extraction_success == 'true'
+        run: |
+          echo "## 🔍 Validation Results" >> extraction_summary.md
+          echo "" >> extraction_summary.md
+          
+          for poll_id in ${{ steps.extract.outputs.extracted_polls }}; do
+            CSV_FILE="polls/$poll_id/${poll_id}_all.csv"
+            if [ -f "$CSV_FILE" ]; then
+              echo "### Validating \`$CSV_FILE\`" >> extraction_summary.md
+              if python mining/mining_IPSOS/validate_poll.py "$CSV_FILE" 2>&1 | tee validation_output.txt; then
+                echo "✅ **Validation passed**" >> extraction_summary.md
+              else
+                echo "⚠️ **Validation warnings**:" >> extraction_summary.md
+                echo "\`\`\`" >> extraction_summary.md
+                cat validation_output.txt >> extraction_summary.md
+                echo "\`\`\`" >> extraction_summary.md
+              fi
+              echo "" >> extraction_summary.md
+            fi
+          done
+      
+      - name: Commit and push changes
+        if: steps.detect.outputs.has_ipsos == 'true' && steps.extract.outputs.extraction_success == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # Add generated files
+          git add polls/
+          git add polls.csv
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            echo "has_changes=false" >> $GITHUB_ENV
+          else
+            COMMIT_MSG="🤖 Auto-extract IPSOS poll data
+
+Extracted polls: ${{ steps.extract.outputs.extracted_polls }}
+
+- Generated CSV files with candidate data
+- Updated polls.csv with metadata
+- Dates inferred from folder names (please verify)
+
+Co-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+            
+            git commit -m "$COMMIT_MSG"
+            
+            # Push to the current branch
+            git push origin HEAD:${{ github.head_ref || github.ref_name }}
+            echo "has_changes=true" >> $GITHUB_ENV
+          fi
+      
+      - name: Post PR comment
+        if: github.event_name == 'pull_request' && steps.detect.outputs.has_ipsos == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            
+            // Read the extraction summary
+            let summary = '# 🤖 IPSOS Poll Auto-Extraction\n\n';
+            
+            if (fs.existsSync('extraction_summary.md')) {
+              summary += fs.readFileSync('extraction_summary.md', 'utf8');
+            }
+            
+            summary += '\n---\n\n';
+            summary += '## 📋 Next Steps\n\n';
+            summary += '1. **Verify survey dates** in `polls.csv`\n';
+            summary += '   - Dates are inferred from folder names (mid-month default)\n';
+            summary += '   - Check the original IPSOS report for exact dates\n';
+            summary += '   - Edit `polls.csv` if needed\n\n';
+            summary += '2. **Review extracted data**\n';
+            summary += '   - Check CSV files for accuracy\n';
+            summary += '   - Verify candidate mappings\n\n';
+            summary += '3. **Run merge**\n';
+            summary += '   - After verifying dates, run `python merge.py` locally\n';
+            summary += '   - Or wait for the merge workflow to run automatically\n\n';
+            summary += '4. **Approve and merge** when ready ✅\n';
+            
+            // Post or update comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('🤖 IPSOS Poll Auto-Extraction')
+            );
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: summary
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: summary
+              });
+            }
