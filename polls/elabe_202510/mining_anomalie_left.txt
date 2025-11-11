@@ -1,0 +1,65 @@
+================================================================================
+RAPPORT D'ANOMALIES - EXTRACTION ELABE
+================================================================================
+
+Population: left
+Nombre d'anomalies: 2
+
+================================================================================
+
+ANOMALIE #1
+--------------------------------------------------------------------------------
+
+Page:           14
+Ligne:          18
+Candidat:       Jordan Bardella
+
+Scores extraits: [10, 9, 75, 2]
+Total:           96% (attendu 100%)
+Différence:      +4%
+
+Position suggérée du score manquant:
+  → début (avant le premier score)
+
+Recommandation:
+  Il MANQUE 4% dans le PDF (barre illisible ou absente). Le score manquant se trouve probablement au début (avant le premier score). Veuillez vérifier le PDF et corriger manuellement si nécessaire.
+
+ACTION REQUISE:
+  1. Ouvrir le PDF source
+  2. Aller à la page 14
+  3. Trouver la ligne 'Jordan Bardella'
+  4. Vérifier si une barre de 4% est présente mais illisible
+  5. Si oui, ajouter manuellement le score manquant
+  6. Scores attendus: ajouter 4% au début (avant le premier score)
+
+================================================================================
+
+ANOMALIE #2
+--------------------------------------------------------------------------------
+
+Page:           14
+Ligne:          28
+Candidat:       Marion Maréchal
+
+Scores extraits: [5, 12, 75, 6]
+Total:           98% (attendu 100%)
+Différence:      +2%
+
+Position suggérée du score manquant:
+  → début (avant le premier score)
+
+Recommandation:
+  Il MANQUE 2% dans le PDF (barre illisible ou absente). Le score manquant se trouve probablement au début (avant le premier score). Veuillez vérifier le PDF et corriger manuellement si nécessaire.
+
+ACTION REQUISE:
+  1. Ouvrir le PDF source
+  2. Aller à la page 14
+  3. Trouver la ligne 'Marion Maréchal'
+  4. Vérifier si une barre de 2% est présente mais illisible
+  5. Si oui, ajouter manuellement le score manquant
+  6. Scores attendus: ajouter 2% au début (avant le premier score)
+
+================================================================================
+
+
+FIN DU RAPPORT
