@@ -42,7 +42,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add mj2027*.csv stats.json
+          git add mj2027*.csv stats.json README.md
           git diff --staged --quiet || git commit -m "🤖 Fusion automatique des sondages (merge.py)"
           git push
 
