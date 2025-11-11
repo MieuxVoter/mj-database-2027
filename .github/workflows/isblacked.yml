@@ -6,6 +6,7 @@ on:
     paths:
       - '**.py'
       - 'mining/**/*.py'
+      - 'scraping/**/*.py'
       - 'tests/**/*.py'
 jobs:
   build:
