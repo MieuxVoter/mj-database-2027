@@ -1,11 +1,11 @@
 # Base de données des sondages - Élection présidentielle 2027 
 
-[![IPSOS Polls](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FMieuxVoter%2Fmj-database-2027%2Fmain%2Fstats.json&query=%24.ipsos&label=IPSOS&color=blue)](polls/)
-[![ELABE Polls](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FMieuxVoter%2Fmj-database-2027%2Fmain%2Fstats.json&query=%24.elabe&label=ELABE&color=green)](polls/)
-[![IFOP Polls](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FMieuxVoter%2Fmj-database-2027%2Fmain%2Fstats.json&query=%24.ifop&label=IFOP&color=orange)](polls/)
-[![ODOXA Polls](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FMieuxVoter%2Fmj-database-2027%2Fmain%2Fstats.json&query=%24.odoxa&label=ODOXA&color=red)](polls/)
-[![Cluster17 Polls](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FMieuxVoter%2Fmj-database-2027%2Fmain%2Fstats.json&query=%24.cluster17&label=Cluster17&color=purple)](polls/)
-[![Total Polls](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FMieuxVoter%2Fmj-database-2027%2Fmain%2Fstats.json&query=%24.total&label=Total&color=brightgreen)](polls/)
+![IPSOS Polls](https://img.shields.io/badge/IPSOS-13_sondages-blue)
+![ELABE Polls](https://img.shields.io/badge/ELABE-7_sondages-green)
+![IFOP Polls](https://img.shields.io/badge/IFOP-4_sondages-orange)
+![ODOXA Polls](https://img.shields.io/badge/ODOXA-0_sondages-red)
+![Cluster17 Polls](https://img.shields.io/badge/Cluster17-0_sondages-purple)
+![Total Polls](https://img.shields.io/badge/Total-24_sondages-brightgreen)
 
 ## À propos
 

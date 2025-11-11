@@ -4,10 +4,11 @@ Generate statistics JSON file for README badges.
 
 This script counts the number of polls by institute and generates a stats.json
 file that can be consumed by dynamic shields.io badges.
+It also updates static badges in README.md directly.
 """
 
 import json
-import os
+import re
 from pathlib import Path
 
 
@@ -28,21 +29,16 @@ def count_polls_by_institute():
         print(f"⚠️  Warning: {polls_dir} directory not found")
         return stats
     
-    # Count polls by checking folder names
+    # Count polls by checking folder names with CSV files
     for folder in polls_dir.iterdir():
         if not folder.is_dir():
             continue
         
         folder_name = folder.name.lower()
         
-        # Check if folder contains poll data (has .csv or .html files)
-        has_data = any(
-            f.suffix in ['.csv', '.html'] 
-            for f in folder.iterdir() 
-            if f.is_file()
-        )
-        
-        if not has_data:
+        # Check if folder contains CSV files (actual poll data)
+        csv_files = list(folder.glob("*.csv"))
+        if not csv_files:
             continue
         
         # Count by institute based on folder name prefix
@@ -63,6 +59,59 @@ def count_polls_by_institute():
             stats["total"] += 1
     
     return stats
+
+
+def update_readme_badges(readme_path: Path, stats: dict) -> bool:
+    """Update the poll count badges in the README.
+
+    Returns True if the file was modified, False otherwise.
+    """
+    if not readme_path.exists():
+        print(f"⚠️  Warning: {readme_path} not found")
+        return False
+    
+    content = readme_path.read_text(encoding="utf-8")
+    original_content = content
+    
+    # Patterns to match each institute badge (static badges)
+    patterns = {
+        "ipsos": (
+            r"!\[IPSOS Polls\]\(https://img\.shields\.io/badge/IPSOS-\d+_sondages-blue\)",
+            lambda c: f"![IPSOS Polls](https://img.shields.io/badge/IPSOS-{c}_sondages-blue)"
+        ),
+        "elabe": (
+            r"!\[ELABE Polls\]\(https://img\.shields\.io/badge/ELABE-\d+_sondages-green\)",
+            lambda c: f"![ELABE Polls](https://img.shields.io/badge/ELABE-{c}_sondages-green)"
+        ),
+        "ifop": (
+            r"!\[IFOP Polls\]\(https://img\.shields\.io/badge/IFOP-\d+_sondages-orange\)",
+            lambda c: f"![IFOP Polls](https://img.shields.io/badge/IFOP-{c}_sondages-orange)"
+        ),
+        "odoxa": (
+            r"!\[ODOXA Polls\]\(https://img\.shields\.io/badge/ODOXA-\d+_sondages-red\)",
+            lambda c: f"![ODOXA Polls](https://img.shields.io/badge/ODOXA-{c}_sondages-red)"
+        ),
+        "cluster17": (
+            r"!\[Cluster17 Polls\]\(https://img\.shields\.io/badge/Cluster17-\d+_sondages-purple\)",
+            lambda c: f"![Cluster17 Polls](https://img.shields.io/badge/Cluster17-{c}_sondages-purple)"
+        ),
+        "total": (
+            r"!\[Total Polls\]\(https://img\.shields\.io/badge/Total-\d+_sondages-brightgreen\)",
+            lambda c: f"![Total Polls](https://img.shields.io/badge/Total-{c}_sondages-brightgreen)"
+        ),
+    }
+    
+    # Update each badge
+    for key, (pattern, replacement_fn) in patterns.items():
+        count = stats.get(key, 0)
+        replacement = replacement_fn(count)
+        content = re.sub(pattern, replacement, content)
+    
+    # Write back if modified
+    if content != original_content:
+        readme_path.write_text(content, encoding="utf-8")
+        return True
+    return False
 
 
 def main():
@@ -87,7 +136,18 @@ def main():
         json.dump(stats, f, indent=2, ensure_ascii=False)
     
     print(f"\n✅ Stats written to {stats_file}")
+    
+    # Update README badges
+    readme_path = Path("README.md")
+    modified = update_readme_badges(readme_path, stats)
+    
+    if modified:
+        print(f"✅ Updated badges in {readme_path}")
+    else:
+        print(f"ℹ️  Badges already up to date in {readme_path}")
+    
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    exit(main())
