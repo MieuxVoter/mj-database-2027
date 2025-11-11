@@ -1,0 +1,5 @@
+poll_id: elabe_202410
+publication_date: 2024-10-03
+page_url: https://elabe.fr/barometre-politique-oct-2024/
+pdf_url: https://elabe.fr/wp-content/uploads/2024/10/20241003_les_echos_observatoire-politique.pdf
+source_file: source.pdf
