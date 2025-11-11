@@ -1,0 +1,119 @@
+================================================================================
+RAPPORT D'ANOMALIES - EXTRACTION ELABE
+================================================================================
+
+Population: macron
+Nombre d'anomalies: 4
+
+================================================================================
+
+ANOMALIE #1
+--------------------------------------------------------------------------------
+
+Page:           18
+Ligne:          1
+Candidat:       Gabriel Attal
+
+Scores extraits: [14, 58, 14, 4]
+Total:           90% (attendu 100%)
+Différence:      +10%
+
+Position suggérée du score manquant:
+  → position indéterminée
+
+Recommandation:
+  Il MANQUE 10% dans le PDF (barre illisible ou absente). Le score manquant se trouve probablement au position indéterminée. Veuillez vérifier le PDF et corriger manuellement si nécessaire.
+
+ACTION REQUISE:
+  1. Ouvrir le PDF source
+  2. Aller à la page 18
+  3. Trouver la ligne 'Gabriel Attal'
+  4. Vérifier si une barre de 10% est présente mais illisible
+  5. Si oui, ajouter manuellement le score manquant
+  6. Scores attendus: ajouter 10% au position indéterminée
+
+================================================================================
+
+ANOMALIE #2
+--------------------------------------------------------------------------------
+
+Page:           18
+Ligne:          2
+Candidat:       Edouard Philippe
+
+Scores extraits: [21, 49, 13, 7]
+Total:           90% (attendu 100%)
+Différence:      +10%
+
+Position suggérée du score manquant:
+  → position indéterminée
+
+Recommandation:
+  Il MANQUE 10% dans le PDF (barre illisible ou absente). Le score manquant se trouve probablement au position indéterminée. Veuillez vérifier le PDF et corriger manuellement si nécessaire.
+
+ACTION REQUISE:
+  1. Ouvrir le PDF source
+  2. Aller à la page 18
+  3. Trouver la ligne 'Edouard Philippe'
+  4. Vérifier si une barre de 10% est présente mais illisible
+  5. Si oui, ajouter manuellement le score manquant
+  6. Scores attendus: ajouter 10% au position indéterminée
+
+================================================================================
+
+ANOMALIE #3
+--------------------------------------------------------------------------------
+
+Page:           18
+Ligne:          8
+Candidat:       Dominique de Villepin
+
+Scores extraits: [31, 28, 15, 20]
+Total:           94% (attendu 100%)
+Différence:      +6%
+
+Position suggérée du score manquant:
+  → position indéterminée
+
+Recommandation:
+  Il MANQUE 6% dans le PDF (barre illisible ou absente). Le score manquant se trouve probablement au position indéterminée. Veuillez vérifier le PDF et corriger manuellement si nécessaire.
+
+ACTION REQUISE:
+  1. Ouvrir le PDF source
+  2. Aller à la page 18
+  3. Trouver la ligne 'Dominique de Villepin'
+  4. Vérifier si une barre de 6% est présente mais illisible
+  5. Si oui, ajouter manuellement le score manquant
+  6. Scores attendus: ajouter 6% au position indéterminée
+
+================================================================================
+
+ANOMALIE #4
+--------------------------------------------------------------------------------
+
+Page:           18
+Ligne:          9
+Candidat:       Yaël Braun-Pivet
+
+Scores extraits: [30, 14, 10, 41]
+Total:           95% (attendu 100%)
+Différence:      +5%
+
+Position suggérée du score manquant:
+  → milieu (entre deux scores)
+
+Recommandation:
+  Il MANQUE 5% dans le PDF (barre illisible ou absente). Le score manquant se trouve probablement au milieu (entre deux scores). Veuillez vérifier le PDF et corriger manuellement si nécessaire.
+
+ACTION REQUISE:
+  1. Ouvrir le PDF source
+  2. Aller à la page 18
+  3. Trouver la ligne 'Yaël Braun-Pivet'
+  4. Vérifier si une barre de 5% est présente mais illisible
+  5. Si oui, ajouter manuellement le score manquant
+  6. Scores attendus: ajouter 5% au milieu (entre deux scores)
+
+================================================================================
+
+
+FIN DU RAPPORT
