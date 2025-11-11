@@ -1,0 +1,199 @@
+name: Auto-scrape IPSOS Barometer
+
+on:
+  schedule:
+    # Run every day at 10:00 AM UTC
+    - cron: '0 10 * * *'
+  workflow_dispatch:  # Allow manual triggering
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  scrape-ipsos:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install requests beautifulsoup4
+      
+      - name: Check if current month's poll already exists
+        id: check_existing
+        run: |
+          # Get current year and month
+          CURRENT_YEAR=$(date +%Y)
+          CURRENT_MONTH=$(date +%m)
+          EXPECTED_POLL_ID="ipsos_${CURRENT_YEAR}${CURRENT_MONTH}"
+          
+          echo "expected_poll_id=$EXPECTED_POLL_ID" >> $GITHUB_OUTPUT
+          
+          # Check if poll folder already exists
+          if [ -d "polls/$EXPECTED_POLL_ID" ]; then
+            echo "poll_exists=true" >> $GITHUB_OUTPUT
+            echo "✓ Poll $EXPECTED_POLL_ID already exists - skipping scraping"
+          else
+            echo "poll_exists=false" >> $GITHUB_OUTPUT
+            echo "✓ Poll $EXPECTED_POLL_ID does not exist yet - will attempt to scrape"
+          fi
+      
+      - name: Run IPSOS scraper
+        if: steps.check_existing.outputs.poll_exists == 'false'
+        id: scrape
+        run: |
+          cd scraping/scraping_IPSOS
+          python3 scrape_ipsos_barometer.py --output-dir ../../polls
+          
+          # Check if scraping was successful
+          if [ $? -eq 0 ]; then
+            echo "scrape_success=true" >> $GITHUB_OUTPUT
+            
+            # Find the most recent ipsos poll directory
+            LATEST_POLL=$(ls -td ../../polls/ipsos_* 2>/dev/null | head -1)
+            
+            if [ -n "$LATEST_POLL" ]; then
+              POLL_ID=$(basename "$LATEST_POLL")
+              echo "poll_id=$POLL_ID" >> $GITHUB_OUTPUT
+              echo "poll_path=$LATEST_POLL" >> $GITHUB_OUTPUT
+              
+              # Get current expected poll ID
+              CURRENT_YEAR=$(date +%Y)
+              CURRENT_MONTH=$(date +%m)
+              EXPECTED_POLL_ID="ipsos_${CURRENT_YEAR}${CURRENT_MONTH}"
+              
+              # Check if scraped poll matches current month
+              if [ "$POLL_ID" = "$EXPECTED_POLL_ID" ]; then
+                echo "is_current_month=true" >> $GITHUB_OUTPUT
+                echo "✓ Scraped poll matches current month: $POLL_ID"
+              else
+                echo "is_current_month=false" >> $GITHUB_OUTPUT
+                echo "⚠️  Scraped poll ($POLL_ID) does not match current month ($EXPECTED_POLL_ID)"
+                echo "   This likely means the new month's data is not yet published on IPSOS website"
+              fi
+              
+              # Check if files were actually created/updated
+              if [ -f "$LATEST_POLL/source.html" ] && [ -f "$LATEST_POLL/metadata.txt" ]; then
+                echo "files_created=true" >> $GITHUB_OUTPUT
+              else
+                echo "files_created=false" >> $GITHUB_OUTPUT
+              fi
+            else
+              echo "poll_id=unknown" >> $GITHUB_OUTPUT
+              echo "is_current_month=false" >> $GITHUB_OUTPUT
+              echo "files_created=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "scrape_success=false" >> $GITHUB_OUTPUT
+            echo "is_current_month=false" >> $GITHUB_OUTPUT
+            echo "files_created=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Check for changes
+        if: steps.check_existing.outputs.poll_exists == 'false' && steps.scrape.outputs.scrape_success == 'true'
+        id: check_changes
+        run: |
+          git add polls/
+          
+          # Check if there are any changes to commit
+          if git diff --cached --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No new data to commit (poll may already exist)"
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "New poll data detected"
+          fi
+      
+      - name: Create Pull Request
+        if: |
+          steps.check_existing.outputs.poll_exists == 'false' && 
+          steps.check_changes.outputs.has_changes == 'true' && 
+          steps.scrape.outputs.files_created == 'true' &&
+          steps.scrape.outputs.is_current_month == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: |
+            🤖 feat: Add IPSOS poll ${{ steps.scrape.outputs.poll_id }}
+            
+            - Downloaded source.html and metadata.txt
+            - Ready for data extraction and mining
+          branch: auto-scrape-ipsos-${{ steps.scrape.outputs.poll_id }}
+          delete-branch: true
+          title: "🤖 New IPSOS Poll: ${{ steps.scrape.outputs.poll_id }}"
+          body: |
+            ## Automated IPSOS Poll Scraping
+            
+            This PR contains newly scraped IPSOS barometer data.
+            
+            ### Poll Information
+            - **Poll ID**: `${{ steps.scrape.outputs.poll_id }}`
+            - **Source**: IPSOS Political Barometer
+            - **Scraped**: ${{ github.run_id }}
+            
+            ### Files Added
+            - `${{ steps.scrape.outputs.poll_path }}/source.html` - Flourish visualization data
+            - `${{ steps.scrape.outputs.poll_path }}/metadata.txt` - Survey metadata (dates, sample size, population)
+            
+            ### Next Steps
+            When this PR is merged, the extraction workflow will automatically:
+            1. Extract candidate data from the HTML
+            2. Create CSV file with voting intentions
+            3. Update polls.csv database
+            4. Run validation checks
+            
+            ---
+            
+            🤖 *This PR was automatically created by the IPSOS scraper workflow*
+          labels: |
+            automated
+            ipsos
+            scraping
+            needs-extraction
+          assignees: ${{ github.repository_owner }}
+      
+      - name: Report Status
+        if: always()
+        run: |
+          echo "=================================================="
+          echo "IPSOS Scraping Workflow Summary"
+          echo "=================================================="
+          echo "Expected Poll ID: ${{ steps.check_existing.outputs.expected_poll_id }}"
+          echo "Poll Already Exists: ${{ steps.check_existing.outputs.poll_exists }}"
+          echo "Scrape Success: ${{ steps.scrape.outputs.scrape_success }}"
+          echo "Scraped Poll ID: ${{ steps.scrape.outputs.poll_id }}"
+          echo "Is Current Month: ${{ steps.scrape.outputs.is_current_month }}"
+          echo "Files Created: ${{ steps.scrape.outputs.files_created }}"
+          echo "Has Changes: ${{ steps.check_changes.outputs.has_changes }}"
+          echo "=================================================="
+          
+          if [ "${{ steps.check_existing.outputs.poll_exists }}" = "true" ]; then
+            echo "⏭️  Poll for current month already exists - no action needed"
+            exit 0
+          elif [ "${{ steps.scrape.outputs.scrape_success }}" = "false" ]; then
+            echo "❌ Scraping failed - check logs above"
+            exit 1
+          elif [ "${{ steps.scrape.outputs.is_current_month }}" = "false" ]; then
+            echo "⏭️  Scraped poll is not for current month (IPSOS website not updated yet)"
+            echo "   Will retry tomorrow"
+            exit 0
+          elif [ "${{ steps.check_changes.outputs.has_changes }}" = "false" ]; then
+            echo "⏭️  No new data to commit"
+            exit 0
+          elif [ "${{ steps.scrape.outputs.files_created }}" = "true" ]; then
+            echo "✅ New poll data scraped successfully and PR created"
+            exit 0
+          else
+            echo "⚠️  Unexpected state - manual review needed"
+            exit 1
+          fi

@@ -180,7 +180,7 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: |
-            Auto-extract IPSOS poll data
+            🤖 Auto-extract IPSOS poll data
             
             Generated CSV files with candidate data and updated polls.csv.
             Dates inferred from folder names (please verify with original IPSOS report).
