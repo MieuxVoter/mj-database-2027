@@ -1,0 +1,18 @@
+# IPSOS Barometer Poll Metadata
+# Generated: 2025-11-11 09:35:10
+
+poll_id: ipsos_202511
+publication_date: 2025-11-07
+source_url: https://www.ipsos.com/fr-fr/barometre-politique-ipsos-bva-la-tribune-dimanche
+visualization_id: 21670948
+visualization_url: https://flo.uri.sh/visualisation/21670948/embed?auto=1
+
+# Survey metadata (extracted from 'A propos de ce sondage' section)
+survey_start_date: 2025-11-06
+survey_end_date: 2025-11-07
+sample_size: 1000
+population_description: la population française âgée de 18 ans et plus
+
+# Additional metadata
+poll_type: pt1
+population: all

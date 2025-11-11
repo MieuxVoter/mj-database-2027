@@ -63,16 +63,16 @@ def normalize_name(name: str) -> str:
 def extract_metadata_from_html(html_file: Path) -> Dict[str, Optional[str]]:
     """
     Extract poll metadata from HTML file (sample size, source, etc.).
+    
+    First tries to read from metadata.txt file in the same folder.
+    Falls back to extracting from HTML if metadata.txt doesn't exist.
 
     Note: Survey dates are typically NOT included in Flourish HTML exports
-    and must be added manually to polls.csv.
+    and must be added manually to polls.csv or metadata.txt.
 
     Returns:
-        Dictionary with metadata keys: 'sample_size', 'source', 'footer_note'
+        Dictionary with metadata keys: 'sample_size', 'source', 'footer_note', 'start_date', 'end_date'
     """
-    with open(html_file, "r", encoding="utf-8") as f:
-        content = f.read()
-
     metadata: Dict[str, Optional[str]] = {
         "sample_size": None,
         "source": None,
@@ -80,6 +80,41 @@ def extract_metadata_from_html(html_file: Path) -> Dict[str, Optional[str]]:
         "start_date": None,
         "end_date": None,
     }
+    
+    # First, try to read from metadata.txt file
+    metadata_file = html_file.parent / "metadata.txt"
+    if metadata_file.exists():
+        print(f"📄 Reading metadata from: {metadata_file}")
+        try:
+            with open(metadata_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    
+                    if ":" in line:
+                        key, value = line.split(":", 1)
+                        key = key.strip()
+                        value = value.strip()
+                        
+                        if key == "survey_start_date":
+                            metadata["start_date"] = value
+                        elif key == "survey_end_date":
+                            metadata["end_date"] = value
+                        elif key == "sample_size":
+                            metadata["sample_size"] = value
+                        elif key == "source_url":
+                            metadata["source"] = value
+            
+            if metadata["start_date"] and metadata["end_date"]:
+                print(f"✓ Read survey dates from metadata.txt: {metadata['start_date']} to {metadata['end_date']}")
+                return metadata
+        except Exception as e:
+            print(f"⚠️  Error reading metadata.txt: {e}")
+    
+    # Fall back to extracting from HTML
+    with open(html_file, "r", encoding="utf-8") as f:
+        content = f.read()
 
     # Extract footer note (contains sample size info)
     footer_pattern = r'"layout\.footer_note":\s*"([^"]+)"'
