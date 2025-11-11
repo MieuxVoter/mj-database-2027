@@ -1,0 +1,283 @@
+name: Auto-extract ELABE polls
+
+on:
+  pull_request:
+    paths:
+      - 'polls/elabe_*/source.pdf'
+      - 'polls/elabe_**/metadata.txt'
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  extract-elabe:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Checkout the PR head from wherever it is (fork or main repo)
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      
+      - name: Detect new PDF files in polls folder
+        id: detect
+        run: |
+          echo "Scanning for NEW ELABE folders with PDF files but no CSV files..."
+          echo ""
+          
+          # Get the base branch (usually main)
+          BASE_BRANCH="${{ github.base_ref }}"
+          if [ -z "$BASE_BRANCH" ]; then
+            BASE_BRANCH="main"
+          fi
+          echo "Comparing against base branch: $BASE_BRANCH"
+          
+          # Fetch base branch for comparison
+          git fetch origin "$BASE_BRANCH"
+          
+          # Find all ELABE folders in the current branch
+          ELABE_TO_EXTRACT=""
+          
+          for elabe_folder in polls/elabe_*/; do
+            if [ ! -d "$elabe_folder" ]; then
+              continue
+            fi
+            
+            POLL_ID=$(basename "$elabe_folder")
+            echo "----------------------------------------"
+            echo "Checking folder: $elabe_folder (poll_id: $POLL_ID)"
+            
+            # Check if this folder exists in the base branch
+            if git ls-tree -r "origin/$BASE_BRANCH" --name-only | grep -q "^$elabe_folder"; then
+              echo "  ⏭️  Folder exists in $BASE_BRANCH - skipping (not new)"
+              continue
+            fi
+            
+            echo "  ✨ NEW folder (not in $BASE_BRANCH)"
+            
+            # Check if there's a PDF file
+            PDF_FILE="$elabe_folder/source.pdf"
+            
+            if [ ! -f "$PDF_FILE" ]; then
+              echo "  ❌ No PDF file found - skipping"
+              continue
+            fi
+            
+            echo "  ✓ PDF file found: $PDF_FILE"
+            
+            # Check if corresponding CSVs already exist (all 5 files required)
+            CSV_ALL="$elabe_folder/${POLL_ID}_all.csv"
+            CSV_LEFT="$elabe_folder/${POLL_ID}_left.csv"
+            CSV_MACRON="$elabe_folder/${POLL_ID}_macron.csv"
+            CSV_FARRIGHT="$elabe_folder/${POLL_ID}_farright.csv"
+            CSV_ABSENTIONISTS="$elabe_folder/${POLL_ID}_absentionists.csv"
+            
+            if [ ! -f "$CSV_ALL" ] || [ ! -f "$CSV_LEFT" ] || [ ! -f "$CSV_MACRON" ] || [ ! -f "$CSV_FARRIGHT" ] || [ ! -f "$CSV_ABSENTIONISTS" ]; then
+              echo "  ✅ CSVs missing - WILL EXTRACT"
+              ELABE_TO_EXTRACT="$ELABE_TO_EXTRACT$PDF_FILE"$'\n'
+            else
+              echo "  ⏭️  All CSVs already exist - skipping"
+            fi
+          done
+          
+          echo ""
+          echo "========================================"
+          
+          if [ -z "$ELABE_TO_EXTRACT" ]; then
+            echo "No NEW ELABE folders need extraction"
+            echo "  (Either all folders are from $BASE_BRANCH, or they already have CSV files)"
+            echo "has_elabe=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "✅ ELABE files to extract:"
+          echo "$ELABE_TO_EXTRACT"
+          
+          # Save to file and output variable
+          echo "$ELABE_TO_EXTRACT" > /tmp/elabe_to_extract.txt
+          echo "has_elabe=true" >> $GITHUB_OUTPUT
+      
+      - name: Install dependencies
+        if: steps.detect.outputs.has_elabe == 'true'
+        run: |
+          pip install pdfminer.six
+      
+      - name: Extract ELABE polls
+        if: steps.detect.outputs.has_elabe == 'true'
+        id: extract
+        run: |
+          EXTRACTION_SUCCESS=true
+          EXTRACTION_REPORT=""
+          ANOMALIES_FOUND=false
+          ANOMALIES_REPORT=""
+          
+          cd mining/mining_ELABE
+          
+          # Read the list of PDFs to extract
+          while IFS= read -r pdf_file; do
+            if [ -z "$pdf_file" ]; then
+              continue
+            fi
+            
+            echo ""
+            echo "========================================"
+            echo "Processing: $pdf_file"
+            echo "========================================"
+            
+            # Extract poll_id and date from path
+            # Example: polls/elabe_202511/source.pdf → poll_id=elabe_202511, date=202511
+            POLL_ID=$(echo "$pdf_file" | sed -E 's|polls/([^/]+)/.*|\1|')
+            DATE=$(echo "$POLL_ID" | sed -E 's|elabe_||')
+            
+            echo "Poll ID: $POLL_ID"
+            echo "Date: $DATE"
+            
+            # Run the extraction
+            PDF_PATH="../../$pdf_file"
+            
+            if python3 elabe_build.py "$PDF_PATH" "$DATE" --overwrite; then
+              echo "✓ Extraction successful for $POLL_ID"
+              EXTRACTION_REPORT="$EXTRACTION_REPORT\n✅ **$POLL_ID**: Extraction successful"
+              
+              # Check for anomalies
+              POLL_DIR="../../polls/$POLL_ID"
+              if ls "$POLL_DIR"/mining_anomalie_*.txt 1> /dev/null 2>&1; then
+                echo "⚠️  Anomalies detected in $POLL_ID"
+                ANOMALIES_FOUND=true
+                
+                # Count anomalies per file
+                for anomaly_file in "$POLL_DIR"/mining_anomalie_*.txt; do
+                  POPULATION=$(basename "$anomaly_file" | sed -E 's|mining_anomalie_(.*)\.txt|\1|')
+                  ANOMALY_COUNT=$(grep -c "^Candidate:" "$anomaly_file" || echo "0")
+                  
+                  if [ "$ANOMALY_COUNT" -gt "0" ]; then
+                    ANOMALIES_REPORT="$ANOMALIES_REPORT\n⚠️  **$POLL_ID** ($POPULATION): $ANOMALY_COUNT anomalies"
+                  fi
+                done
+              fi
+              
+            else
+              echo "✗ Extraction failed for $POLL_ID"
+              EXTRACTION_SUCCESS=false
+              EXTRACTION_REPORT="$EXTRACTION_REPORT\n❌ **$POLL_ID**: Extraction failed"
+            fi
+            
+          done < /tmp/elabe_to_extract.txt
+          
+          echo ""
+          echo "========================================"
+          echo "EXTRACTION SUMMARY"
+          echo "========================================"
+          echo -e "$EXTRACTION_REPORT"
+          
+          if [ "$ANOMALIES_FOUND" = true ]; then
+            echo ""
+            echo "========================================"
+            echo "ANOMALIES DETECTED"
+            echo "========================================"
+            echo -e "$ANOMALIES_REPORT"
+          fi
+          
+          # Set outputs
+          echo "extraction_success=$EXTRACTION_SUCCESS" >> $GITHUB_OUTPUT
+          echo "anomalies_found=$ANOMALIES_FOUND" >> $GITHUB_OUTPUT
+          
+          # Save reports for PR comment
+          echo -e "$EXTRACTION_REPORT" > /tmp/extraction_report.txt
+          echo -e "$ANOMALIES_REPORT" > /tmp/anomalies_report.txt
+          
+          # Exit with error if extraction failed
+          if [ "$EXTRACTION_SUCCESS" = false ]; then
+            exit 1
+          fi
+      
+      - name: Commit extracted CSV files
+        if: steps.extract.outputs.extraction_success == 'true'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Stage all new CSV files and anomaly reports
+          git add polls/elabe_*/*.csv
+          git add polls/elabe_*/mining_anomalie_*.txt || true
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          
+          git commit -m "🤖 Auto-extract ELABE polls" \
+                     -m "Automatically extracted CSV files from ELABE PDFs using mining_ELABE." \
+                     -m "Generated by GitHub Actions workflow: auto-extract-elabe"
+          
+          git push
+      
+      - name: Comment on PR with extraction results
+        if: steps.extract.outputs.extraction_success == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            const extractionReport = fs.readFileSync('/tmp/extraction_report.txt', 'utf8');
+            const anomaliesReport = fs.readFileSync('/tmp/anomalies_report.txt', 'utf8');
+            const hasAnomalies = '${{ steps.extract.outputs.anomalies_found }}' === 'true';
+            
+            let body = '## 🤖 ELABE Extraction Results\n\n';
+            body += '### Extraction Summary\n\n';
+            body += extractionReport + '\n\n';
+            
+            if (hasAnomalies) {
+              body += '### ⚠️ Anomalies Detected\n\n';
+              body += anomaliesReport + '\n\n';
+              body += '> **Note**: Anomaly reports have been saved in the poll folders as `mining_anomalie_*.txt`. ';
+              body += 'Please review these files to identify missing or incorrect data.\n\n';
+            }
+            
+            body += '___\n';
+            body += '✅ CSV files have been automatically generated and committed.\n';
+            body += 'Generated by: [`auto-extract-elabe.yml`](/.github/workflows/auto-extract-elabe.yml)\n';
+            
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+      
+      - name: Comment on PR if extraction failed
+        if: failure() && steps.detect.outputs.has_elabe == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = `## ❌ ELABE Extraction Failed
+            
+            The automatic extraction of ELABE polls encountered errors.
+            
+            **Next steps:**
+            1. Check the [workflow logs](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) for details
+            2. Verify the PDF file format is correct
+            3. Try running the extraction manually: \`python3 mining/mining_ELABE/elabe_build.py <pdf_path> <date>\`
+            
+            ___
+            Generated by: [\`auto-extract-elabe.yml\`](/.github/workflows/auto-extract-elabe.yml)
+            `;
+            
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
