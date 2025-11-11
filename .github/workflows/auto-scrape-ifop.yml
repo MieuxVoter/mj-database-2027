@@ -1,0 +1,56 @@
+name: IFOP PDF to CSV
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'mining/pdfs/**'
+
+jobs:
+  process-pdfs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r mining/mining_ifop/requirements.txt
+
+      - name: Find new PDFs
+        id: find-pdfs
+        run: |
+          # List all changed PDF files in the PR
+          PDF_FILES=$(git diff --name-only --diff-filter=A HEAD^ HEAD | grep '\.pdf$' | grep 'mining/pdfs/')
+          echo "pdf_files=$PDF_FILES" >> $GITHUB_OUTPUT
+
+      - name: Process each PDF
+        if: steps.find-pdfs.outputs.pdf_files != ''
+        run: |
+          for pdf in ${{ steps.find-pdfs.outputs.pdf_files }}; do
+            # Extract AAAAMM from filename (assuming format: something_AAAAMM.pdf)
+            poll_date=$(basename "$pdf" | grep -oE '[0-9]{6}')
+            if [ -z "$poll_date" ]; then
+              echo "Could not extract date from $pdf"
+              exit 1
+            fi
+            # Run your script
+            python ifop_build.py "$pdf" "$poll_date" --overwrite
+          done
+
+      - name: Commit and push changes
+        if: steps.find-pdfs.outputs.pdf_files != ''
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add .
+          git diff-index --quiet HEAD || git commit -m "Auto-generated CSV from PDF"
+          git push
