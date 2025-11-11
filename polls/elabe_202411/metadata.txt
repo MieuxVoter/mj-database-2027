@@ -1,0 +1,5 @@
+poll_id: elabe_202411
+publication_date: 2024-11-07
+page_url: https://elabe.fr/barometre-politique-nov-2024/
+pdf_url: https://elabe.fr/wp-content/uploads/2024/11/20241107_les_echos_observatoire-politique.pdf
+source_file: source.pdf

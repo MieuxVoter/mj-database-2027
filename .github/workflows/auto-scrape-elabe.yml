@@ -1,0 +1,208 @@
+name: Auto-scrape ELABE Barometer
+
+on:
+  schedule:
+    # Run every day at 11:00 AM UTC
+    - cron: '0 11 * * *'
+  workflow_dispatch:  # Allow manual triggering
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  scrape-elabe:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install requests beautifulsoup4
+      
+      - name: Check if current month's poll already exists
+        id: check_existing
+        run: |
+          # Get current year and month
+          CURRENT_YEAR=$(date +%Y)
+          CURRENT_MONTH=$(date +%m)
+          EXPECTED_POLL_ID="elabe_${CURRENT_YEAR}${CURRENT_MONTH}"
+          
+          echo "expected_poll_id=$EXPECTED_POLL_ID" >> $GITHUB_OUTPUT
+          
+          # Check if poll folder with PDF and metadata already exists
+          if [ -d "polls/$EXPECTED_POLL_ID" ] && \
+             [ -f "polls/$EXPECTED_POLL_ID/source.pdf" ] && \
+             [ -f "polls/$EXPECTED_POLL_ID/metadata.txt" ]; then
+            echo "poll_exists=true" >> $GITHUB_OUTPUT
+            echo "✓ Poll $EXPECTED_POLL_ID already exists with PDF - skipping scraping"
+          else
+            echo "poll_exists=false" >> $GITHUB_OUTPUT
+            echo "✓ Poll $EXPECTED_POLL_ID does not exist yet - will attempt to scrape"
+          fi
+      
+      - name: Run ELABE scraper
+        if: steps.check_existing.outputs.poll_exists == 'false'
+        id: scrape
+        run: |
+          cd scraping/scraping_ELABE
+          python3 scrape_elabe_barometer.py
+          
+          # Check if scraping was successful
+          if [ $? -eq 0 ]; then
+            echo "scrape_success=true" >> $GITHUB_OUTPUT
+            
+            # Find the most recent elabe poll directory with PDF
+            LATEST_POLL=$(find ../../polls/elabe_* -name "source.pdf" -type f -printf '%T@ %h\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+            
+            if [ -n "$LATEST_POLL" ]; then
+              POLL_ID=$(basename "$LATEST_POLL")
+              echo "poll_id=$POLL_ID" >> $GITHUB_OUTPUT
+              echo "poll_path=$LATEST_POLL" >> $GITHUB_OUTPUT
+              
+              # Get current expected poll ID
+              CURRENT_YEAR=$(date +%Y)
+              CURRENT_MONTH=$(date +%m)
+              EXPECTED_POLL_ID="elabe_${CURRENT_YEAR}${CURRENT_MONTH}"
+              
+              # Check if scraped poll matches current month
+              if [ "$POLL_ID" = "$EXPECTED_POLL_ID" ]; then
+                echo "is_current_month=true" >> $GITHUB_OUTPUT
+                echo "✓ Scraped poll matches current month: $POLL_ID"
+              else
+                echo "is_current_month=false" >> $GITHUB_OUTPUT
+                echo "⚠️  Scraped poll ($POLL_ID) does not match current month ($EXPECTED_POLL_ID)"
+                echo "   This likely means the new month's data is not yet published on ELABE website"
+              fi
+              
+              # Check if files were actually created/updated
+              if [ -f "$LATEST_POLL/source.pdf" ] && [ -f "$LATEST_POLL/metadata.txt" ]; then
+                echo "files_created=true" >> $GITHUB_OUTPUT
+                
+                # Get PDF size for summary
+                PDF_SIZE=$(du -h "$LATEST_POLL/source.pdf" | cut -f1)
+                echo "pdf_size=$PDF_SIZE" >> $GITHUB_OUTPUT
+                echo "✓ PDF downloaded successfully ($PDF_SIZE)"
+              else
+                echo "files_created=false" >> $GITHUB_OUTPUT
+              fi
+            else
+              echo "poll_id=unknown" >> $GITHUB_OUTPUT
+              echo "is_current_month=false" >> $GITHUB_OUTPUT
+              echo "files_created=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "scrape_success=false" >> $GITHUB_OUTPUT
+            echo "is_current_month=false" >> $GITHUB_OUTPUT
+            echo "files_created=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Check for changes
+        if: steps.check_existing.outputs.poll_exists == 'false' && steps.scrape.outputs.scrape_success == 'true'
+        id: check_changes
+        run: |
+          git add polls/
+          
+          # Check if there are any changes to commit
+          if git diff --cached --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No new data to commit (poll may already exist)"
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "New poll data detected"
+          fi
+      
+      - name: Create Pull Request
+        if: |
+          steps.check_existing.outputs.poll_exists == 'false' && 
+          steps.check_changes.outputs.has_changes == 'true' && 
+          steps.scrape.outputs.files_created == 'true' &&
+          steps.scrape.outputs.is_current_month == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: |
+            🤖 feat: Add ELABE poll ${{ steps.scrape.outputs.poll_id }}
+            
+            - Downloaded source.pdf (${{ steps.scrape.outputs.pdf_size }}) and metadata.txt
+            - Ready for data extraction and mining
+          branch: auto-scrape-elabe-${{ steps.scrape.outputs.poll_id }}
+          delete-branch: true
+          title: "🤖 New ELABE Poll: ${{ steps.scrape.outputs.poll_id }}"
+          body: |
+            ## Automated ELABE Poll Scraping
+            
+            This PR contains newly scraped ELABE barometer data.
+            
+            ### Poll Information
+            - **Poll ID**: `${{ steps.scrape.outputs.poll_id }}`
+            - **Source**: ELABE Political Barometer (Les Echos)
+            - **Scraped**: ${{ github.run_id }}
+            - **PDF Size**: ${{ steps.scrape.outputs.pdf_size }}
+            
+            ### Files Added
+            - `${{ steps.scrape.outputs.poll_path }}/source.pdf` - Full barometer report PDF
+            - `${{ steps.scrape.outputs.poll_path }}/metadata.txt` - Survey metadata (dates, URLs)
+            
+            ### Next Steps
+            Manual data extraction from PDF will be required:
+            1. Extract candidate voting intentions from PDF
+            2. Create CSV files (all, left, macron, farright, absentionists)
+            3. Update polls.csv database
+            4. Run validation checks
+            
+            ---
+            
+            🤖 *This PR was automatically created by the ELABE scraper workflow*
+          labels: |
+            automated
+            elabe
+            scraping
+            needs-extraction
+          assignees: ${{ github.repository_owner }}
+      
+      - name: Report Status
+        if: always()
+        run: |
+          echo "=================================================="
+          echo "ELABE Scraping Workflow Summary"
+          echo "=================================================="
+          echo "Expected Poll ID: ${{ steps.check_existing.outputs.expected_poll_id }}"
+          echo "Poll Already Exists: ${{ steps.check_existing.outputs.poll_exists }}"
+          echo "Scrape Success: ${{ steps.scrape.outputs.scrape_success }}"
+          echo "Scraped Poll ID: ${{ steps.scrape.outputs.poll_id }}"
+          echo "Is Current Month: ${{ steps.scrape.outputs.is_current_month }}"
+          echo "Files Created: ${{ steps.scrape.outputs.files_created }}"
+          echo "Has Changes: ${{ steps.check_changes.outputs.has_changes }}"
+          echo "PDF Size: ${{ steps.scrape.outputs.pdf_size }}"
+          echo "=================================================="
+          
+          if [ "${{ steps.check_existing.outputs.poll_exists }}" = "true" ]; then
+            echo "⏭️  Poll for current month already exists - no action needed"
+            exit 0
+          elif [ "${{ steps.scrape.outputs.scrape_success }}" = "false" ]; then
+            echo "❌ Scraping failed - check logs above"
+            exit 1
+          elif [ "${{ steps.scrape.outputs.is_current_month }}" = "false" ]; then
+            echo "⏭️  Scraped poll is not for current month (ELABE website not updated yet)"
+            echo "   Will retry tomorrow"
+            exit 0
+          elif [ "${{ steps.check_changes.outputs.has_changes }}" = "false" ]; then
+            echo "⏭️  No new data to commit"
+            exit 0
+          elif [ "${{ steps.scrape.outputs.files_created }}" = "true" ]; then
+            echo "✅ New poll PDF scraped successfully and PR created"
+            exit 0
+          else
+            echo "⚠️  Unexpected state - manual review needed"
+            exit 1
+          fi
