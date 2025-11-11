@@ -22,7 +22,7 @@ MONTH_URL_MAP = {
     9: "septembre",
     10: "oct",
     11: "nov",
-    12: "dec"
+    12: "dec",
 }
 
 # Month name mapping (French full name for parsing)
@@ -46,7 +46,7 @@ MONTH_NAME_MAP = {
 
 # PDF patterns
 PDF_LINK_PATTERN = r'Télécharger le rapport.*?href="(https://elabe\.fr/wp-content/uploads/[^"]+\.pdf)"'
-PDF_FILENAME_PATTERN = r'/(\d{8})_les_echos_observatoire-politique\.pdf'
+PDF_FILENAME_PATTERN = r"/(\d{8})_les_echos_observatoire-politique\.pdf"
 
 # HTTP Headers
 HEADERS = {

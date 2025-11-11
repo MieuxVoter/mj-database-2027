@@ -8,6 +8,4 @@ __version__ = "1.0.0"
 
 from .scraper import scrape_elabe_barometer
 
-__all__ = [
-    "scrape_elabe_barometer"
-]
+__all__ = ["scrape_elabe_barometer"]

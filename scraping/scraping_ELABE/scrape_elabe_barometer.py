@@ -33,51 +33,28 @@ Examples:
   %(prog)s --dry-run               # Show what would be done
   %(prog)s --force                 # Overwrite existing polls
   %(prog)s --month 11 --year 2025  # Scrape November 2025
-        """
+        """,
     )
-    
+
     parser.add_argument(
-        '--output-dir',
-        type=str,
-        default='../../polls',
-        help='Output directory for polls (default: ../../polls)'
+        "--output-dir", type=str, default="../../polls", help="Output directory for polls (default: ../../polls)"
     )
-    
-    parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Show what would be done without downloading'
-    )
-    
-    parser.add_argument(
-        '--force',
-        action='store_true',
-        help='Overwrite existing polls'
-    )
-    
-    parser.add_argument(
-        '--month',
-        type=int,
-        help='Month to scrape (1-12, default: current month)'
-    )
-    
-    parser.add_argument(
-        '--year',
-        type=int,
-        help='Year to scrape (default: current year)'
-    )
-    
+
+    parser.add_argument("--dry-run", action="store_true", help="Show what would be done without downloading")
+
+    parser.add_argument("--force", action="store_true", help="Overwrite existing polls")
+
+    parser.add_argument("--month", type=int, help="Month to scrape (1-12, default: current month)")
+
+    parser.add_argument("--year", type=int, help="Year to scrape (default: current year)")
+
     args = parser.parse_args()
-    
+
     # Run scraper
     result = scrape_elabe_barometer(
-        output_dir=args.output_dir,
-        dry_run=args.dry_run,
-        force=args.force,
-        year=args.year,
-        month=args.month
+        output_dir=args.output_dir, dry_run=args.dry_run, force=args.force, year=args.year, month=args.month
     )
-    
+
     # Print result
     if result["skipped"]:
         print(f"\n✓ {result['message']}")
