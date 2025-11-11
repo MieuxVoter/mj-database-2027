@@ -9,7 +9,7 @@ BASE_URL = "https://www.ipsos.com"
 BAROMETER_URL = "https://www.ipsos.com/fr-fr/barometre-politique-ipsos-bva-la-tribune-dimanche"
 
 # Flourish patterns
-FLOURISH_VIZ_PATTERN = r'visualisation/(\d+)'
+FLOURISH_VIZ_PATTERN = r"visualisation/(\d+)"
 FLOURISH_EMBED_TEMPLATE = "https://flo.uri.sh/visualisation/{}/embed?auto=1"
 
 # HTTP Headers to mimic a real browser
@@ -24,15 +24,36 @@ HEADERS = {
 
 # French month names mapping
 MONTH_MAP = {
-    "janvier": 1, "février": 2, "mars": 3, "avril": 4,
-    "mai": 5, "juin": 6, "juillet": 7, "août": 8,
-    "septembre": 9, "octobre": 10, "novembre": 11, "décembre": 12
+    "janvier": 1,
+    "février": 2,
+    "mars": 3,
+    "avril": 4,
+    "mai": 5,
+    "juin": 6,
+    "juillet": 7,
+    "août": 8,
+    "septembre": 9,
+    "octobre": 10,
+    "novembre": 11,
+    "décembre": 12,
 }
 
 # Politician names for candidate data detection
 POLITICIAN_INDICATORS = [
-    "Bardella", "Le Pen", "Mélenchon", "Macron",
-    "Philippe", "Darmanin", "Attal", "Hollande",
-    "Glucksmann", "Zemmour", "Roussel", "Bertrand",
-    "Retailleau", "Ruffin", "Ciotti", "Tondelier"
+    "Bardella",
+    "Le Pen",
+    "Mélenchon",
+    "Macron",
+    "Philippe",
+    "Darmanin",
+    "Attal",
+    "Hollande",
+    "Glucksmann",
+    "Zemmour",
+    "Roussel",
+    "Bertrand",
+    "Retailleau",
+    "Ruffin",
+    "Ciotti",
+    "Tondelier",
 ]

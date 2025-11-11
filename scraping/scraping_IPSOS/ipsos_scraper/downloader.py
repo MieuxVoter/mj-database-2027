@@ -12,11 +12,11 @@ from .config import HEADERS
 def download_flourish_visualization(viz_url: str, session: requests.Session) -> str:
     """
     Download the HTML source of a Flourish visualization.
-    
+
     Args:
         viz_url: The URL of the Flourish visualization
         session: requests Session object
-        
+
     Returns:
         The HTML content of the visualization
     """

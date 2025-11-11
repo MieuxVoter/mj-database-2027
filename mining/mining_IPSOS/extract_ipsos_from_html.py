@@ -63,7 +63,7 @@ def normalize_name(name: str) -> str:
 def extract_metadata_from_html(html_file: Path) -> Dict[str, Optional[str]]:
     """
     Extract poll metadata from HTML file (sample size, source, etc.).
-    
+
     First tries to read from metadata.txt file in the same folder.
     Falls back to extracting from HTML if metadata.txt doesn't exist.
 
@@ -80,7 +80,7 @@ def extract_metadata_from_html(html_file: Path) -> Dict[str, Optional[str]]:
         "start_date": None,
         "end_date": None,
     }
-    
+
     # First, try to read from metadata.txt file
     metadata_file = html_file.parent / "metadata.txt"
     if metadata_file.exists():
@@ -91,12 +91,12 @@ def extract_metadata_from_html(html_file: Path) -> Dict[str, Optional[str]]:
                     line = line.strip()
                     if not line or line.startswith("#"):
                         continue
-                    
+
                     if ":" in line:
                         key, value = line.split(":", 1)
                         key = key.strip()
                         value = value.strip()
-                        
+
                         if key == "survey_start_date":
                             metadata["start_date"] = value
                         elif key == "survey_end_date":
@@ -105,13 +105,13 @@ def extract_metadata_from_html(html_file: Path) -> Dict[str, Optional[str]]:
                             metadata["sample_size"] = value
                         elif key == "source_url":
                             metadata["source"] = value
-            
+
             if metadata["start_date"] and metadata["end_date"]:
                 print(f"✓ Read survey dates from metadata.txt: {metadata['start_date']} to {metadata['end_date']}")
                 return metadata
         except Exception as e:
             print(f"⚠️  Error reading metadata.txt: {e}")
-    
+
     # Fall back to extracting from HTML
     with open(html_file, "r", encoding="utf-8") as f:
         content = f.read()

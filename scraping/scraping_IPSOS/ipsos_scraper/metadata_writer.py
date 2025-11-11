@@ -16,11 +16,11 @@ def write_metadata(
     sample_size: Optional[str],
     population_description: Optional[str],
     viz_url: str,
-    barometer_url: str
+    barometer_url: str,
 ) -> None:
     """
     Write metadata.txt file with survey information.
-    
+
     Args:
         output_path: Directory where metadata.txt will be written
         publication_date: Publication date (YYYY-MM-DD format)
@@ -32,8 +32,8 @@ def write_metadata(
         barometer_url: URL of the barometer page
     """
     metadata_path = output_path / "metadata.txt"
-    
-    with open(metadata_path, 'w', encoding='utf-8') as f:
+
+    with open(metadata_path, "w", encoding="utf-8") as f:
         f.write(f"publication_date: {publication_date or 'Unknown'}\n")
         f.write(f"survey_start_date: {survey_start_date or 'Unknown'}\n")
         f.write(f"survey_end_date: {survey_end_date or 'Unknown'}\n")
