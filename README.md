@@ -1,5 +1,12 @@
 # Base de données des sondages - Élection présidentielle 2027 
 
+[![IPSOS Polls](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FMieuxVoter%2Fmj-database-2027%2Fmain%2Fstats.json&query=%24.ipsos&label=IPSOS&color=blue)](polls/)
+[![ELABE Polls](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FMieuxVoter%2Fmj-database-2027%2Fmain%2Fstats.json&query=%24.elabe&label=ELABE&color=green)](polls/)
+[![IFOP Polls](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FMieuxVoter%2Fmj-database-2027%2Fmain%2Fstats.json&query=%24.ifop&label=IFOP&color=orange)](polls/)
+[![ODOXA Polls](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FMieuxVoter%2Fmj-database-2027%2Fmain%2Fstats.json&query=%24.odoxa&label=ODOXA&color=red)](polls/)
+[![Cluster17 Polls](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FMieuxVoter%2Fmj-database-2027%2Fmain%2Fstats.json&query=%24.cluster17&label=Cluster17&color=purple)](polls/)
+[![Total Polls](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FMieuxVoter%2Fmj-database-2027%2Fmain%2Fstats.json&query=%24.total&label=Total&color=brightgreen)](polls/)
+
 ## À propos
 
 Ce dépôt contient une base de données structurée des sondages d'opinion pour l'élection présidentielle française de 2027. Les données sont organisées pour appliquer le **Jugement Majoritaire**, permettant une analyse approfondie de l'opinion publique sur les différents candidats et de prédire qui sortirait gagnant avec ce mode de départage.

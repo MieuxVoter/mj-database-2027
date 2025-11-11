@@ -29,6 +29,10 @@ jobs:
         run: |
           python merge.py
 
+      - name: Generate statistics
+        run: |
+          python generate_stats.py
+
       - name: Validate merged data
         run: |
           pytest tests/test_merge.py -v --color=yes
@@ -38,7 +42,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add mj2027*.csv
+          git add mj2027*.csv stats.json
           git diff --staged --quiet || git commit -m "🤖 Fusion automatique des sondages (merge.py)"
           git push
 
