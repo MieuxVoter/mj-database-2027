@@ -124,7 +124,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: |
-            feat: Add IPSOS poll ${{ steps.scrape.outputs.poll_id }}
+            🤖 feat: Add IPSOS poll ${{ steps.scrape.outputs.poll_id }}
             
             - Downloaded source.html and metadata.txt
             - Ready for data extraction and mining
