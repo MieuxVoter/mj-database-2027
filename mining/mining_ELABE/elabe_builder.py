@@ -22,10 +22,10 @@ from manager import Manager
 class ElabeBuilder:
     """
     Construit les CSV ELABE à partir des données extraites.
-    
+
     Format de sortie:
     candidate_id,intention_mention_1-5,intention_mention_6,intention_mention_7,poll_type_id,population
-    
+
     Pour ELABE:
     - intention_mention_1 : Image très positive (%)
     - intention_mention_2 : Image plutôt positive (%)
@@ -37,43 +37,43 @@ class ElabeBuilder:
     - poll_type_id : pt2 (baromètre politique)
     - population : all, left, macron, farright, absentionists
     """
-    
+
     def __init__(self, path_to_candidates: pathlib.Path, results: List[CandidatePollInterface]):
         """
         Initialise le builder.
-        
+
         Args:
             path_to_candidates: Chemin vers candidates.csv
             results: Liste des ElabeLine extraites
-        
+
         Raises:
             ValueError: Si des candidats sont inconnus
         """
         self.path_to_candidates = path_to_candidates
         self.manager = Manager()
         self.manager.load_csv(self.path_to_candidates)
-        
+
         self.results = results
-        
+
         unknown_candidates = []
-        
+
         # Vérification des candidats
         for result in self.results:
             candidate = self.manager.find_candidate(result.get_name())
             if candidate is None:
                 unknown_candidates.append(result.get_name())
-        
+
         if unknown_candidates:
             print(f"❌ Candidats inconnus : {unknown_candidates}")
             raise ValueError(
                 f"Candidats inconnus : {', '.join(unknown_candidates)}. "
                 f"Veuillez compléter le fichier {self.path_to_candidates}"
             )
-    
+
     def write(self, output_path: pathlib.Path, poll_type: str, population: str):
         """
         Écrit le CSV de sortie.
-        
+
         Args:
             output_path: Chemin du fichier CSV à créer
             poll_type: Type de sondage (pt2 pour ELABE)
@@ -94,20 +94,20 @@ class ElabeBuilder:
                 "population",
             ]
             f.write(",".join(header) + "\n")
-            
+
             # Données
             for result in self.results:
                 candidate = self.manager.find_candidate(result.get_name())
                 scores = result.get_scores()
-                
+
                 # ELABE a 5 scores, on complète avec 2 vides pour atteindre 7
                 if len(scores) < 7:
                     scores = list(scores)  # Copie pour ne pas modifier l'original
                     scores.extend([""] * (7 - len(scores)))
-                
+
                 line = [candidate.id, *scores, poll_type, population]
                 f.write(",".join(line) + "\n")
-        
+
         print(f"✅ CSV généré : {output_path}")
         print(f"   📊 {len(self.results)} candidats")
         print(f"   🏷️  Population : {population}")

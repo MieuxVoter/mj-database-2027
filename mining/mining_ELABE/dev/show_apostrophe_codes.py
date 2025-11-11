@@ -12,7 +12,7 @@ PDF_PATH = pathlib.Path(__file__).parent.parent.parent / "polls" / "elabe_202511
 for page_number, page_layout in enumerate(extract_pages(str(PDF_PATH)), start=1):
     if page_number != 19:
         continue
-    
+
     for element in page_layout:
         if isinstance(element, LTTextContainer):
             text = element.get_text().strip()
@@ -20,7 +20,7 @@ for page_number, page_layout in enumerate(extract_pages(str(PDF_PATH)), start=1)
                 print(f"Texte trouvé: {text}")
                 print(f"\nCodes hex des caractères:")
                 for i, char in enumerate(text):
-                    if char in "''" or (i > 0 and text[i-1] == 'd'):
+                    if char in "''" or (i > 0 and text[i - 1] == "d"):
                         print(f"  Position {i}: '{char}' → U+{ord(char):04X} ({ord(char)})")
                 break
     break

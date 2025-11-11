@@ -13,11 +13,11 @@ Fonctionnalités :
 
 Usage:
     from mining_ELABE import ElabeMiner, PageDetector
-    
+
     # Détecter les pages
     detector = PageDetector(pdf_path)
     pages = detector.detect_data_pages()
-    
+
     # Extraire les données
     miner = ElabeMiner(pdf_path)
     for page_num, population in pages:
