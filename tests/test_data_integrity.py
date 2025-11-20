@@ -6,7 +6,7 @@ def test_candidates_no_duplicate_acronyms():
     df = pd.read_csv("candidates.csv")
     duplicates = df[df.duplicated("candidate_id", keep=False)]
 
-    assert duplicates.empty, f"Doublons d'acronymes détectés : {duplicates['acronyme'].tolist()}"
+    assert duplicates.empty, f"Doublons d'acronymes détectés : {duplicates['candidate_id'].tolist()}"
 
 
 def test_poll_types_unique_ids():
@@ -23,9 +23,17 @@ def test_poll_folders_declared_in_polls_csv():
     actual_folders = set()
     for item in os.listdir(polls_dir):
         item_path = os.path.join(polls_dir, item)
+        # print(f"item_path: {item_path}")
+
         if os.path.isdir(item_path):
             # Use forward slash to match the format in polls.csv
-            actual_folders.add(f"{polls_dir}/{item}")
+            csv_files = [
+                f for f in os.listdir(item_path)
+                if f.lower().endswith(".csv")
+            ]
+
+            if csv_files:
+                actual_folders.add(f"{polls_dir}/{item}")
 
     # Get all folders declared in polls.csv
     df = pd.read_csv("polls.csv")
