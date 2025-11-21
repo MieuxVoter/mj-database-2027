@@ -55,21 +55,6 @@ import pandas as pd
 polls = pd.read_csv('mj2027.csv')
 ```
 
-### 🧪 Exécuter les tests et formater le code
-Avant d’ajouter une nouvelle fonctionnalité ou de proposer une modification, merci d’exécuter les tests et de formater le code.
-
-1. Lancer les tests (uniquement les tests dans le dossier `tests` à la racine du projet)
-
-```python
-pytest tests
-```
-
-2. Formater le code avec Black
-Pour garantir un style de code homogène dans tout le projet, formate le code avant de créer un commit :
-```python
-black . -l 120
-```
-
 ## Note importante
 
 Ce dépôt n'applique pas la règle du jugement majoritaire, mais répertorie les sondages compatibles, il peut servir à appliquer d'autres régles de départage comme le vote par approbation.
