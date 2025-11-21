@@ -1,0 +1,6 @@
+publication_date: 2024-06-20
+survey_start_date: 2024-06-19
+survey_end_date: 2024-06-20
+sample_size: 1000
+population_description: la population française âgée de 18 ans et plus
+source_url: https://www.ipsos.com/sites/default/files/ct/news/documents/2024-06/ipsos-latribunedimanche-barometrepolitique-juin2024_0.pdf

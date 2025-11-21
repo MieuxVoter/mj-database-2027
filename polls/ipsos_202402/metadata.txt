@@ -1,0 +1,6 @@
+publication_date: 2024-02-15
+survey_start_date: 2024-02-13
+survey_end_date: 2024-02-15
+sample_size: 1000
+population_description: la population française âgée de 18 ans et plus
+source_url: https://www.ipsos.com/sites/default/files/ct/news/documents/2024-02/Ipsos-La-Tribune-Dimanche-Barometre-Politique-Fevrier-2024-web.pdf
