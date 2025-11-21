@@ -1,11 +1,11 @@
 # Base de données des sondages - Élection présidentielle 2027 
 
-![IPSOS Polls](https://img.shields.io/badge/IPSOS-13_sondages-blue)
+![IPSOS Polls](https://img.shields.io/badge/IPSOS-19_sondages-blue)
 ![ELABE Polls](https://img.shields.io/badge/ELABE-9_sondages-green)
 ![IFOP Polls](https://img.shields.io/badge/IFOP-4_sondages-orange)
 ![ODOXA Polls](https://img.shields.io/badge/ODOXA-0_sondages-red)
 ![Cluster17 Polls](https://img.shields.io/badge/Cluster17-0_sondages-purple)
-![Total Polls](https://img.shields.io/badge/Total-26_sondages-brightgreen)
+![Total Polls](https://img.shields.io/badge/Total-32_sondages-brightgreen)
 
 ## À propos
 
