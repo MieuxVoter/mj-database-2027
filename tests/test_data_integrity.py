@@ -1,5 +1,23 @@
 import os
 import pandas as pd
+import pytest
+
+
+def get_poll_files():
+    """Récupère tous les fichiers CSV de sondages dans polls/"""
+    polls_dir = "polls"
+    csv_files_list = []
+
+    for folder_name in sorted(os.listdir(polls_dir)):
+        folder_path = os.path.join(polls_dir, folder_name)
+        if os.path.isdir(folder_path):
+            # Get all CSV files in this folder
+            csv_files = sorted([f for f in os.listdir(folder_path) if f.lower().endswith(".csv")])
+            for csv_file in csv_files:
+                csv_path = os.path.join(folder_path, csv_file)
+                csv_files_list.append(csv_path)
+
+    return csv_files_list
 
 
 def test_candidates_no_duplicate_acronyms():
@@ -83,3 +101,38 @@ def test_poll_csv_filenames_match_poll_ids():
                 )
 
     assert not errors, f"Erreurs de correspondance des fichiers CSV:\n" + "\n".join(errors)
+
+
+@pytest.mark.parametrize("csv_path", get_poll_files())
+def test_poll_percentages_sum_to_100(csv_path):
+    """Vérifie que la somme des pourcentages vaut 100 pour chaque ligne d'un fichier CSV de sondage"""
+    errors = []
+
+    try:
+        df = pd.read_csv(csv_path)
+
+        # Find all columns that start with "intention_mention_"
+        intention_cols = [col for col in df.columns if col.startswith("intention_mention_")]
+
+        if not intention_cols:
+            # Skip files without intention_mention columns
+            return
+
+        # Check each row
+        for idx, row in df.iterrows():
+            # Calculate the sum of percentage values
+            percentage_sum = row[intention_cols].sum()
+
+            # Check if sum equals 100
+            if percentage_sum != 100:
+                candidate_id = row.get(
+                    "candidate_id", f"row {idx + 2}"
+                )  # +2 because idx is 0-based and there's a header
+                errors.append(
+                    f"  Ligne {idx + 2} (candidate: {candidate_id}): " f"somme = {percentage_sum}% (attendu: 100%)"
+                )
+
+    except Exception as e:
+        errors.append(f"  Erreur lors de la lecture: {str(e)}")
+
+    assert not errors, f"Lignes avec des sommes incorrectes dans {csv_path}:\n" + "\n".join(errors)
