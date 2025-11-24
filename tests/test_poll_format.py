@@ -3,6 +3,14 @@ import pandas as pd
 
 
 def test_poll_filename_format():
+    """
+    Here is what is allowed in each poll folder:
+    - 0 or 1 PDF file
+    - 0 or 1 metadata.txt file
+    - any number of CSV files with names containing an underscore
+    - any number of mining_anomalie_*.txt files
+    - html files are ignored
+    """
 
     for item in os.listdir("polls/"):
         item_path = os.path.join("polls/", item)
