@@ -9,7 +9,16 @@ from pathlib import Path
 from typing import Dict, Optional, Any
 from datetime import datetime
 
-from .config import BASE_URL, BAROMETER_URL_TEMPLATE_WITH_DASH, BAROMETER_URL_TEMPLATE_NO_DASH, MONTH_URL_MAP, HEADERS
+from .config import (
+    BASE_URL,
+    BAROMETER_URL_TEMPLATE_WITH_DASH,
+    BAROMETER_URL_TEMPLATE_NO_DASH,
+    OBSERVATOIRE_URL_TEMPLATE,
+    OBSERVATOIRE_URL_TEMPLATE_NO_DASH,
+    MONTH_URL_MAP,
+    MONTH_URL_MAP_SHORT,
+    HEADERS,
+)
 from .url_extractor import extract_pdf_url
 from .date_extractor import extract_publication_date_from_url, generate_poll_id
 from .pdf_downloader import download_pdf
@@ -48,9 +57,11 @@ def scrape_elabe_barometer(
     year = year or now.year
     month = month or now.month
 
-    # Construct page URL
-    month_slug = MONTH_URL_MAP.get(month)
-    if not month_slug:
+    # Construct page URL - try multiple formats
+    month_slug_full = MONTH_URL_MAP.get(month)
+    month_slug_short = MONTH_URL_MAP_SHORT.get(month)
+    
+    if not month_slug_full:
         return {
             "success": False,
             "poll_id": None,
@@ -59,11 +70,22 @@ def scrape_elabe_barometer(
             "message": f"Month {month} not in MONTH_URL_MAP",
         }
 
-    # Try both URL formats (with and without dash)
-    page_urls = [
-        BAROMETER_URL_TEMPLATE_WITH_DASH.format(month_name=month_slug, year=year),
-        BAROMETER_URL_TEMPLATE_NO_DASH.format(month_name=month_slug, year=year),
-    ]
+    # Build list of all possible URL formats to try
+    # Priority: observatoire (newer) > barometre, full month > short month, with dash > no dash
+    page_urls = []
+    for month_slug in [month_slug_full, month_slug_short]:
+        if month_slug:
+            page_urls.extend([
+                # Observatoire URLs (newer format)
+                OBSERVATOIRE_URL_TEMPLATE.format(month_name=month_slug, year=year),
+                OBSERVATOIRE_URL_TEMPLATE_NO_DASH.format(month_name=month_slug, year=year),
+                # Barometre URLs (older format)
+                BAROMETER_URL_TEMPLATE_WITH_DASH.format(month_name=month_slug, year=year),
+                BAROMETER_URL_TEMPLATE_NO_DASH.format(month_name=month_slug, year=year),
+            ])
+    
+    # Remove duplicates while preserving order
+    page_urls = list(dict.fromkeys(page_urls))
 
     try:
         # Create session
@@ -89,24 +111,26 @@ def scrape_elabe_barometer(
                 raise
 
         if not html_content or not page_url:
+            # Not an error - poll may not be published yet
             return {
                 "success": False,
                 "poll_id": None,
                 "output_path": None,
-                "skipped": False,
-                "message": f"Could not find page for {month_slug} {year} (tried both URL formats)",
+                "skipped": True,  # Mark as skipped, not error
+                "message": f"No ELABE poll found for {month_slug_full} {year} (tried {len(page_urls)} URL formats)",
             }
 
         # Extract PDF URL
         pdf_url = extract_pdf_url(html_content)
 
         if not pdf_url:
+            # Page exists but no PDF link found - may be a different page type
             return {
                 "success": False,
                 "poll_id": None,
                 "output_path": None,
-                "skipped": False,
-                "message": f"Could not find PDF URL on page: {page_url}",
+                "skipped": True,  # Mark as skipped, not error
+                "message": f"Page found but no PDF link on: {page_url} (may not be the barometer page)",
             }
 
         print(f"Found PDF URL: {pdf_url}")
