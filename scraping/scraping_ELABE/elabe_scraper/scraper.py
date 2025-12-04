@@ -60,7 +60,7 @@ def scrape_elabe_barometer(
     # Construct page URL - try multiple formats
     month_slug_full = MONTH_URL_MAP.get(month)
     month_slug_short = MONTH_URL_MAP_SHORT.get(month)
-    
+
     if not month_slug_full:
         return {
             "success": False,
@@ -75,15 +75,17 @@ def scrape_elabe_barometer(
     page_urls = []
     for month_slug in [month_slug_full, month_slug_short]:
         if month_slug:
-            page_urls.extend([
-                # Observatoire URLs (newer format)
-                OBSERVATOIRE_URL_TEMPLATE.format(month_name=month_slug, year=year),
-                OBSERVATOIRE_URL_TEMPLATE_NO_DASH.format(month_name=month_slug, year=year),
-                # Barometre URLs (older format)
-                BAROMETER_URL_TEMPLATE_WITH_DASH.format(month_name=month_slug, year=year),
-                BAROMETER_URL_TEMPLATE_NO_DASH.format(month_name=month_slug, year=year),
-            ])
-    
+            page_urls.extend(
+                [
+                    # Observatoire URLs (newer format)
+                    OBSERVATOIRE_URL_TEMPLATE.format(month_name=month_slug, year=year),
+                    OBSERVATOIRE_URL_TEMPLATE_NO_DASH.format(month_name=month_slug, year=year),
+                    # Barometre URLs (older format)
+                    BAROMETER_URL_TEMPLATE_WITH_DASH.format(month_name=month_slug, year=year),
+                    BAROMETER_URL_TEMPLATE_NO_DASH.format(month_name=month_slug, year=year),
+                ]
+            )
+
     # Remove duplicates while preserving order
     page_urls = list(dict.fromkeys(page_urls))
 
