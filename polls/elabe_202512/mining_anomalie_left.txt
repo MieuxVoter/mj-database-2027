@@ -1,0 +1,38 @@
+================================================================================
+RAPPORT D'ANOMALIES - EXTRACTION ELABE
+================================================================================
+
+Population: left
+Nombre d'anomalies: 1
+
+================================================================================
+
+ANOMALIE #1
+--------------------------------------------------------------------------------
+
+Page:           17
+Ligne:          18
+Candidat:       Gérald Darmanin
+
+Scores extraits: [10, 23, 59, 5]
+Total:           97% (attendu 100%)
+Différence:      +3%
+
+Position suggérée du score manquant:
+  → début (avant le premier score)
+
+Recommandation:
+  Il MANQUE 3% dans le PDF (barre illisible ou absente). Le score manquant se trouve probablement au début (avant le premier score). Veuillez vérifier le PDF et corriger manuellement si nécessaire.
+
+ACTION REQUISE:
+  1. Ouvrir le PDF source
+  2. Aller à la page 17
+  3. Trouver la ligne 'Gérald Darmanin'
+  4. Vérifier si une barre de 3% est présente mais illisible
+  5. Si oui, ajouter manuellement le score manquant
+  6. Scores attendus: ajouter 3% au début (avant le premier score)
+
+================================================================================
+
+
+FIN DU RAPPORT
