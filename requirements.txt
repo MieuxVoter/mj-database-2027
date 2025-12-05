@@ -1,0 +1,9 @@
+numpy==2.0.2
+pandas==2.3.3
+black==25.11.0
+hypothesis==6.140.3
+pdfminer==20191125
+pdfminer.six==20251107
+logging==0.4.9.6
+colorlog==6.10.1
+pytest==8.4.2
