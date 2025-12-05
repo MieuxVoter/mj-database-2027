@@ -57,7 +57,9 @@ Examples:
 
     # Print result
     if result["skipped"]:
-        print(f"\n✓ {result['message']}")
+        print(f"\nℹ️  {result['message']}")
+        # Not an error - poll may not be published yet
+        sys.exit(0)
     elif result["success"]:
         print(f"\n✓ {result['message']}")
         if result["output_path"]:

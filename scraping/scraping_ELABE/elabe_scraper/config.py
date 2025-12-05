@@ -8,8 +8,11 @@ Constants and configuration for ELABE barometer scraping.
 BASE_URL = "https://elabe.fr"
 BAROMETER_URL_TEMPLATE_WITH_DASH = "https://elabe.fr/barometre-politique-{month_name}-{year}/"
 BAROMETER_URL_TEMPLATE_NO_DASH = "https://elabe.fr/barometre-politique-{month_name}{year}/"
+OBSERVATOIRE_URL_TEMPLATE = "https://elabe.fr/lobservatoire-politique-{month_name}-{year}/"
+OBSERVATOIRE_URL_TEMPLATE_NO_DASH = "https://elabe.fr/lobservatoire-politique-{month_name}{year}/"
 
 # Month name mapping (French short form used in URLs)
+# Some months use abbreviated names, others use full names
 MONTH_URL_MAP = {
     1: "janvier",
     2: "fevrier",
@@ -20,6 +23,22 @@ MONTH_URL_MAP = {
     7: "juillet",
     8: "aout",
     9: "septembre",
+    10: "octobre",
+    11: "novembre",
+    12: "decembre",
+}
+
+# Alternate short month names (used in some URLs)
+MONTH_URL_MAP_SHORT = {
+    1: "janv",
+    2: "fev",
+    3: "mars",
+    4: "avr",
+    5: "mai",
+    6: "juin",
+    7: "juil",
+    8: "aout",
+    9: "sept",
     10: "oct",
     11: "nov",
     12: "dec",
