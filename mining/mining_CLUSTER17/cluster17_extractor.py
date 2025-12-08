@@ -1,7 +1,7 @@
 import pathlib
 import logging
 import re
-from typing import List
+from typing import List, Dict, Any
 import pdfplumber
 import pandas as pd
 from tabulate import tabulate
@@ -94,13 +94,107 @@ class Cluster17PDFExtractor:
         return has_title and has_table_structure and has_numeric_density and has_expected_columns
     
 
+    def _get_tables_population(self, page_number: int) -> List[Dict[str, Any]] | None:
+        """
+        Extrait d'une page PDF les **tableaux** et les **blocs de texte (légendes ou populations)**
+        qui se trouvent immédiatement au-dessus d'eux, en renvoyant les deux éléments dans une structure combinée.
+        
+        Args:
+            page_number: Numéro de la page à analyser (indexée 1). 
+                Il doit être compris entre 1 et le nombre total de pages du PDF.
 
+        Returns:
+            List[Dict[str, Any]] | None
+                    Une liste de dictionnaires, où chaque élément représente un tableau et son contexte textuel associé.
+
+            Si aucun tableau n'est détecté sur la page, renvoie `None`.        
+        """
+
+        logger.debug("")
+        logger.debug("="*50)
+        logger.debug(f"Obtenir des tables et ses populations — Page: {page_number}")
+        logger.debug("="*50)
+        logger.debug("")
+
+        with pdfplumber.open(self.file) as pdf:
+
+            total_pages = len(pdf.pages)
+            
+            if page_number < 1 or page_number > len(pdf.pages):
+                logging.error(f"Numéro de page invalide: {page_number}. "
+                                f"Le PDF ne comporte que {total_pages} pages.")
+                raise ValueError(f"Le PDF ne comporte que {total_pages} pages.")
+            
+            page = pdf.pages[page_number - 1]    
+
+            # Détecter les tables 
+            table_objects = sorted(page.find_tables(), key=lambda t: t.bbox[1])
+            bboxes = [t.bbox for t in table_objects]
+
+            logger.debug(f"Table(s) détectée(s) :\t{len(table_objects)} ")
+            logger.debug("")
+
+            # Extraire tous les mots avec coordonnées
+            words = page.extract_words(use_text_flow=True)
+
+            y_prev_bottom = 0
+            survey_data = []
+            for idx, (x0, y_top, x1, y_bottom) in enumerate(bboxes, start=1):
+                logger.debug(f"Obtenir les information du table {idx}")  
+                logger.debug(f"bbox table :\t({x0:.1f}, {y_top:.1f}, {x1:.1f}, {y_bottom:.1f})") 
+
+                # Extraire texte avant la table (caption / population)
+                segment_words = [w for w in words if y_prev_bottom <= w["bottom"] <= y_top]  
+                sorted_words = sorted(segment_words, key=lambda w: (w["top"], w["x0"]))
+                segment_texte = " ".join(w["text"] for w in sorted_words)  
+
+                # supprimer le titre principal
+                clean_text = re.sub(
+                    r"BAROMÈTRE DES PERSONNALITÉS\s+[A-ZÉÈÊÎÔÛÂÀÙÇ\-]+",
+                    "",
+                    segment_texte,
+                    flags=re.IGNORECASE
+                ).strip()  
+
+                population = None
+                population_label = None
+                if clean_text:
+                    logger.debug(f"Légende:\t{clean_text}")
+                    population_detected = Population.detect_from_text(clean_text)
+                    if population_detected:
+                        population, population_label = population_detected
+                        logger.debug(f"population:\t{population}")     
+                    
+                # Extraire la table
+                df = pd.DataFrame(table_objects[idx - 1].extract())
+
+                # Nettoyage du DataFrame
+                df = df.dropna(how="all").reset_index(drop=True)
+                if not df.empty:
+                    df.columns = df.iloc[0]
+                    df = df[1:].reset_index(drop=True)
+
+                logger.debug(f"columns: {df.columns.tolist()}")
+                logger.debug("Aperçu du DataFrame :\n" + tabulate(df.head(), headers="keys", tablefmt="psql"))
+
+                survey_data.append({
+                    "Table id": idx,
+                    "Légende de tableau": clean_text,
+                    "Population": population,
+                    "Étiquette de population": population_label,
+                    "df": df
+                })
+                                    
+                y_prev_bottom = y_bottom 
+                logger.debug("")   
+
+        return survey_data
 
 
     def extract_data(self, start_page: int = 1) -> List:
 
         logger.info("")
-        logger.info("🔍 Détection des pages de données... ")
+        logger.info("🔍 Détection et extraction des pages de données... ")
 
         pages = list(extract_pages(str(self.file)))
         total_pages = len(pages)
@@ -116,158 +210,9 @@ class Cluster17PDFExtractor:
         logger.info(f"📊 {len(data_pages)} page(s) de données détectée(s) :")
         logger.info("")
 
-        val = 38
-        self._get_tables_and_captions(val)
-        self.buscar_captions_refinado(val)
-        self.buscar_captions_inteligente(val)
-
-
+        for page in data_pages:
+            survey_data = self._get_tables_population(page)
+            for table in survey_data:
+                logger.info(f"• Page {page} : {table['Étiquette de population']}")
 
         return []
-    
-
-    def _get_tables_and_captions(self, page_number: int):
-
-        with pdfplumber.open(self.file) as pdf:
-            total_pages = len(pdf.pages)
-            if page_number < 1 or page_number > len(pdf.pages):
-                logging.error(f"Numéro de page invalide: {page_number}. "
-                                f"Le PDF ne comporte que {total_pages} pages.")
-                raise ValueError(f"Le PDF ne comporte que {total_pages} pages.")
-            
-            page = pdf.pages[page_number - 1]
-           
-            # Détecter les tables (objets Table)
-            table_objects = page.find_tables()
-
-            logger.debug(f"Page : {page_number} — {len(table_objects)} table(s) détectée(s)")
-            for i, t in enumerate(table_objects, start=1):
-                x0, y0, x1, y1 = t.bbox
-                logger.debug(f"Table {i}: bbox = ({x0:.1f}, {y0:.1f}, {x1:.1f}, {y1:.1f})")
-            
-            # Extraire les tables
-            logger.debug(f"")
-            for i, t in enumerate(table_objects, start=1):
-                table_data = t.extract()  
-
-                # création pandas dataframe
-                df = pd.DataFrame(table_data)
-                # Nettoyage du DataFrame
-                df = df.dropna(how="all").reset_index(drop=True)
-                df.columns = df.iloc[0] if not df.empty else None
-                df = df[1:] if len(df) > 1 else df    
-
-                logger.debug(f"Table {i}")
-                logger.debug("Imprimer uniquement le .head() du dataframe\n" + tabulate(df.head(), headers='keys', tablefmt='psql'))
-
-
-
-    def buscar_captions_refinado(self, page_number, margen=100):
-        """
-        Busca captions justo encima de cada tabla, evitando incluir títulos de página.
-        """
-        resultados = []
-        margen_superior=120
-
-        with pdfplumber.open(self.file) as pdf:
-            page = pdf.pages[page_number - 1]
-
-            tables = sorted(page.find_tables(), key=lambda t: t.bbox[1])  # de arriba a abajo
-            words = page.extract_words(use_text_flow=True)
-
-            for i, t in enumerate(tables, start=1):
-                x0, y_top, x1, y_bottom = t.bbox
-
-                # límite superior: borde inferior de la tabla anterior
-                y_limite_inferior = tables[i-2].bbox[3] if i > 1 else 0
-
-                # 1️buscar solo entre el borde superior y la tabla anterior
-                encima = [
-                    w for w in words
-                    if y_limite_inferior < w["bottom"] < y_top
-                    and y_top - w["bottom"] < margen_superior
-                    and x0 - 20 < w["x0"] < x1 + 20
-                ]
-
-                #  agrupar por línea y ordenar
-                lineas = {}
-                for w in encima:
-                    y_line = round(w["top"], -1)
-                    lineas.setdefault(y_line, []).append(w["text"])
-
-                sorted_lines = sorted(lineas.items(), key=lambda kv: kv[0])
-                ultimas_lineas = [" ".join(v) for _, v in sorted_lines[-2:]]
-                caption = " ".join(ultimas_lineas).strip()
-
-                #  limpiar título global y restos
-                caption = re.sub(r"BAROMÈTRE DES PERSONNALITÉS.*", "", caption, flags=re.I)
-                caption = re.sub(r"^\d+\s+\S+", "", caption).strip()  # elimina si empieza con número
-                caption = re.sub(r"\s{2,}", " ", caption)
-
-                resultados.append({
-                    "tabla_id": i,
-                    "bbox": t.bbox,
-                    "caption": caption
-                })
-
-                print(f"Tabla {i}: '{caption}'")
-
-        return resultados
-                
-
-
-    def buscar_captions_inteligente(self, page_number, margen_vertical=200, margen_horizontal=150):
-        """
-        Busca captions justo encima de cada tabla, con heurísticas robustas.
-        - Amplía márgenes verticales y horizontales.
-        - Usa patrones de texto típicos ("Électeurs", "Concernant").
-        """
-        resultados = []
-
-        with pdfplumber.open(self.file) as pdf:
-            page = pdf.pages[page_number - 1]
-            tables = sorted(page.find_tables(), key=lambda t: t.bbox[1])  # de arriba a abajo
-            words = page.extract_words(use_text_flow=True)
-            full_text = page.extract_text() or ""
-
-            for i, t in enumerate(tables, start=1):
-                x0, y_top, x1, y_bottom = t.bbox
-                y_limite_inferior = tables[i-2].bbox[3] if i > 1 else 0
-
-                # 1️⃣ Buscar texto en el margen ampliado
-                encima = [
-                    w for w in words
-                    if y_limite_inferior < w["bottom"] < y_top
-                    and y_top - w["bottom"] < margen_vertical
-                    and (x0 - margen_horizontal) < w["x0"] < (x1 + margen_horizontal)
-                ]
-
-                # 2️ Agrupar líneas
-                lineas = {}
-                for w in encima:
-                    y_line = round(w["top"], -1)
-                    lineas.setdefault(y_line, []).append(w["text"])
-
-                sorted_lines = sorted(lineas.items(), key=lambda kv: kv[0])
-                ultimas_lineas = [" ".join(v) for _, v in sorted_lines[-3:]]
-                caption = " ".join(ultimas_lineas).strip()
-
-                # 3️ Limpieza de ruido
-                caption = re.sub(r"BAROMÈTRE DES PERSONNALITÉS.*", "", caption, flags=re.I)
-                caption = re.sub(r"^\d+\s+\S+", "", caption).strip()
-                caption = re.sub(r"\s{2,}", " ", caption)
-
-                # 4️ Heurística de rescate (buscar directamente texto tipo 'Électeurs …')
-                if not caption or not re.search(r"Électeurs|Concernant", caption, flags=re.I):
-                    regex_caption = re.search(r"(Électeurs[^\\n]+|Concernant[^\\n]+)", full_text, re.I)
-                    caption = regex_caption.group(1).strip() if regex_caption else caption
-
-                resultados.append({
-                    "tabla_id": i,
-                    "bbox": t.bbox,
-                    "caption": caption
-                })
-
-                print(f" Tabla {i}: '{caption}'")
-
-        return resultados

@@ -14,7 +14,7 @@ def setup_logging(settings=None) -> None:
 
     # Define different format if it is DEBUG or not to see
     # more details on the log
-    LOG_LEVEL = LogLevel.DEBUG
+    LOG_LEVEL = LogLevel.INFO
 
     if LOG_LEVEL == LogLevel.DEBUG:
         log_format = "%(log_color)s [%(levelname)s] (%(module)s): %(message)s"

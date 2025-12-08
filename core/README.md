@@ -62,6 +62,8 @@ Résultat :
 2️⃣ Savoir dans quelles enquêtes une population apparaît
 
 ```Python
+from core.population import Population
+
 Population.surveys_for(Population.MACRON)
 ```
 
@@ -71,7 +73,17 @@ Résultat :
 ['CLUSTER17', 'ELABE']
 ```
 
-3️⃣ Afficher une étiquette lisible
+3️⃣ Détecte la population correspondant à un texte
+```Python
+from core.population import Population
+
+population_detected = Population.detect_from_text("Électeurs RN aux Européennes 2024")
+
+if population_detected:
+    population, population_label = population_detected
+```
+
+4️⃣ Afficher une étiquette lisible
 Chaque membre possède une propriété label qui retourne une étiquette explicite :
 
 ```
@@ -79,7 +91,7 @@ print(Population.MACRON.label)
 # → "Électeurs d'Emmanuel Macron"
 ```
 
-4️⃣ Utilisation avec `argparse`
+5️⃣ Utilisation avec `argparse`
 
 L’énumération est compatible avec argparse pour être utilisée comme choix de paramètre CLI :
 
@@ -177,6 +189,7 @@ La nouvelle enquête devient immédiatement fonctionnelle sans modifier la logiq
 | ----------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------- |
 | `Population.by_survey(name)`  | Retourne toutes les populations d’une enquête donnée (`"CLUSTER17"` ou `"ELABE"`). | `Population.by_survey("ELABE")`             |
 | `Population.surveys_for(pop)` | Retourne la liste des enquêtes où la population donnée apparaît.                   | `Population.surveys_for(Population.MACRON)` |
+| `Population.detect_from_text(text)` | Détecte la population correspondant à un texte normalisé.                   | `Population.detect_from_text("Électeurs RN aux Européennes 2024")` |
 | `Population.label`            | Retourne une étiquette lisible (ex. “Électeurs de LFI aux Européennes 2024”).      | `Population.LFI.label`                      |
 
 

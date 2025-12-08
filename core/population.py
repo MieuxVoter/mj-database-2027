@@ -1,3 +1,4 @@
+import re
 from enum import Enum
 from core.helpers import normalize
 
@@ -152,13 +153,9 @@ class Population(str, Enum):
 
         for pop, keywords in KEYWORDS.items():
             for kw in keywords:
-                if kw in text:
-                    return pop, pop.label
+                if kw.replace(" ", "") in text.replace(" ", ""):
+                    pattern = re.sub(r"\s+", r"\\s*", kw)
+                    if re.search(pattern, text):
+                        return pop, pop.label
 
         return None
-
-        # txt = "Électeurs PS/PP aux Européennes 2024"
-        # population_detected = Population.detect_from_text(txt)
-        # if population_detected:
-        #     population, population_label = population_detected
-        #     logger.info(f"population: {population_label}")
