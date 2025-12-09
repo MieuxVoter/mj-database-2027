@@ -6,7 +6,7 @@ Functions for downloading Flourish visualizations.
 
 import requests
 
-from .config import HEADERS
+from .config import get_random_headers
 
 
 def download_flourish_visualization(viz_url: str, session: requests.Session) -> str:
@@ -20,6 +20,6 @@ def download_flourish_visualization(viz_url: str, session: requests.Session) -> 
     Returns:
         The HTML content of the visualization
     """
-    response = session.get(viz_url, headers=HEADERS, timeout=30)
+    response = session.get(viz_url, timeout=30)
     response.raise_for_status()
     return response.text
