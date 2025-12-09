@@ -11,7 +11,7 @@ from typing import Optional
 import requests
 from bs4 import BeautifulSoup
 
-from .config import BASE_URL, BAROMETER_URL, HEADERS
+from .config import BASE_URL, BAROMETER_URL, get_random_headers
 from .url_extractor import extract_flourish_urls
 from .date_extractor import extract_publication_date, extract_survey_metadata, generate_poll_id
 from .downloader import download_flourish_visualization
@@ -50,10 +50,11 @@ def scrape_ipsos_barometer(output_dir: str = "polls", dry_run: bool = False, for
     print(f"\n🔍 Fetching IPSOS barometer page: {BAROMETER_URL}")
 
     session = requests.Session()
+    session.headers.update(get_random_headers())
 
     try:
         # Fetch the main barometer page
-        response = session.get(BAROMETER_URL, headers=HEADERS, timeout=30)
+        response = session.get(BAROMETER_URL, timeout=30)
         response.raise_for_status()
 
         soup = BeautifulSoup(response.text, "html.parser")
