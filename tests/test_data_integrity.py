@@ -136,3 +136,57 @@ def test_poll_percentages_sum_to_100(csv_path):
         errors.append(f"  Erreur lors de la lecture: {str(e)}")
 
     assert not errors, f"Lignes avec des sommes incorrectes dans {csv_path}:\n" + "\n".join(errors)
+
+
+@pytest.mark.parametrize("csv_path", get_poll_files())
+def test_poll_mentions_alignment(csv_path):
+    """Vérifie que le nombre de colonnes 'intention_mention' remplies correspond au type de sondage"""
+
+    # Load poll types
+    try:
+        poll_types = pd.read_csv("poll_types.csv").set_index("id")
+    except FileNotFoundError:
+        pytest.fail("Fichier poll_types.csv introuvable")
+
+    try:
+        df = pd.read_csv(csv_path)
+
+        if df.empty:
+            return
+
+        # Check if poll_type_id exists
+        if "poll_type_id" not in df.columns:
+            pytest.fail(f"Colonne 'poll_type_id' manquante dans {csv_path}")
+
+        # Get poll type for this file (assuming all rows have same type, check first one)
+        poll_type_id = df["poll_type_id"].iloc[0]
+
+        if poll_type_id not in poll_types.index:
+            pytest.fail(f"Type de sondage inconnu: {poll_type_id} dans {csv_path}")
+
+        # Check that all 7 mention columns exist
+        for i in range(1, 8):
+            col_name = f"intention_mention_{i}"
+            if col_name not in df.columns:
+                pytest.fail(
+                    f"Colonne manquante dans {csv_path}: {col_name} (tous les fichiers doivent avoir 7 colonnes mentions)"
+                )
+
+        expected_mentions = poll_types.loc[poll_type_id, "nombre_mentions"]
+
+        # Count filled intention_mention columns
+        intention_cols = [f"intention_mention_{i}" for i in range(1, 8)]
+
+        filled_cols_count = 0
+        for col in intention_cols:
+            # Check if column has any non-null value
+            # We consider a column filled if it has at least one non-NaN value
+            if df[col].notna().any():
+                filled_cols_count += 1
+
+        assert (
+            filled_cols_count == expected_mentions
+        ), f"Fichier {csv_path} (type {poll_type_id}): {filled_cols_count} colonnes remplies, attendu {expected_mentions}"
+
+    except Exception as e:
+        pytest.fail(f"Erreur lors de l'analyse de {csv_path}: {str(e)}")
