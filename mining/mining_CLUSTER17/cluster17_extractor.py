@@ -5,11 +5,11 @@ from typing import List, Dict, Any
 import pdfplumber
 import pandas as pd
 from tabulate import tabulate
-from pdfminer.high_level import extract_pages
 from pdfminer.layout import LTTextContainer
 from core.settings.logger import setup_logging
 from core.helpers import normalize
 from core.population import Population
+
 
 setup_logging()
 logger = logging.getLogger("app")
@@ -24,10 +24,6 @@ class Cluster17PDFExtractor:
         r"vous\s+n['’]avez\s+pas\s+d['’]avis\s+sur\s+elle",
         r"vous\s+ne\s+la\s+connaissez\s+pas",
     ]
-
-    min_table_rows: int = 3
-    gap_multiplier: float = 1.8
-    min_gap: float = 4.0
 
     def __init__(self, file: pathlib.Path, population: Population | None = None) -> None:
 
@@ -178,6 +174,7 @@ class Cluster17PDFExtractor:
                 logger.debug("Aperçu du DataFrame :\n" + tabulate(df.head(), headers="keys", tablefmt="psql"))
 
                 survey_data.append({
+                    "Page": page_number,
                     "Table id": idx,
                     "Légende de tableau": clean_text,
                     "Population": population,
@@ -189,30 +186,3 @@ class Cluster17PDFExtractor:
                 logger.debug("")   
 
         return survey_data
-
-
-    def extract_data(self, start_page: int = 1) -> List:
-
-        logger.info("")
-        logger.info("🔍 Détection et extraction des pages de données... ")
-
-        pages = list(extract_pages(str(self.file)))
-        total_pages = len(pages)
-
-        # Détection des pages pertinentes contenant des sondages
-        data_pages = []
-        for page_num in range(start_page, total_pages + 1):
-            page_layout = pages[page_num - 1]
-
-            if self._is_page_relevant(page_layout):
-                data_pages.append(page_num)
-
-        logger.info(f"📊 {len(data_pages)} page(s) de données détectée(s) :")
-        logger.info("")
-
-        for page in data_pages:
-            survey_data = self._get_tables_population(page)
-            for table in survey_data:
-                logger.info(f"• Page {page} : {table['Étiquette de population']}")
-
-        return []

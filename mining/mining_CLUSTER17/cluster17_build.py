@@ -5,7 +5,7 @@ import logging
 from core.settings.logger import setup_logging
 from core.helpers import valid_date
 from core.population import Population
-from mining.mining_CLUSTER17.cluster17_extractor import Cluster17PDFExtractor
+from mining.mining_CLUSTER17.cluster17 import Cluster17
 
 # Type de sondage CLUSTER17
 POLL_TYPE = "pt4"
@@ -61,7 +61,7 @@ def main():
     logger.info(f"👥 Candidats   : {CANDIDATES_CSV}")
     logger.info("")
 
-    process = Cluster17PDFExtractor(args.file, args.population)
+    process = Cluster17(args.file, args.population)
     process.extract_data()
 
     logger.info("")
