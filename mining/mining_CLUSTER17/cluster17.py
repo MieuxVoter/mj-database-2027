@@ -64,10 +64,12 @@ class Cluster17:
         # Commencer la création des CSV
         process_builder = Cluster17CSVBuilder(self.file.parent)
 
-        # for survey in surveys:
-        #     process_builder.create_csv(survey)
+        logger.info("")
+        logger.info("📦  Extraction et construction des CSV...")
+        for survey in surveys:
+            process_builder.create_csv(survey)
 
-        process_builder.create_csv(surveys[1])
+        # process_builder.create_csv(surveys[1])
 
 
 

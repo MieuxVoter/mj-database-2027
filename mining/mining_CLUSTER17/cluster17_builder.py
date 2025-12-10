@@ -36,7 +36,22 @@ class Cluster17CSVBuilder:
 
     def clean_survey_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-                # Normaliser les colonnes avant de filtrer et de renommer
+        Nettoie et normalise les données d'une enquête Cluster17.
+
+        Étapes principales :
+        1. Normalise les noms de colonnes.
+        2. Filtre uniquement les colonnes d'intérêt (COLUMNS_KEEP).
+        3. Renomme les colonnes selon le mapping défini (RENAME_COLUMNS).
+        4. Supprime le symbole '%' et convertit les valeurs en entiers.
+            (Toutes les colonnes sauf 'personnalite' sont traitées.)
+
+        Args:
+            df: pd.DataFrame
+                Données brutes extraites d'une table du baromètre.
+
+        Returns:
+            pd.DataFrame
+                Données nettoyées, prêtes pour export CSV ou fusion avec candidats.
         """
 
         df.columns = [normalize(col) for col in df.columns]
@@ -58,6 +73,32 @@ class Cluster17CSVBuilder:
         return df
     
     def merge_candidates(self, df: pd.DataFrame, population: Population) -> Dict[str, Any] | None:
+        """
+        Fusionne les données d'enquête avec le fichier de référence des candidats.
+
+        Cette méthode associe à chaque personnalité son identifiant unique (`candidate_id`)
+        en se basant sur une comparaison de noms normalisés (sans accents, minuscules, etc.).
+        Elle renvoie à la fois le DataFrame enrichi et le nombre d'identifiants non trouvés.
+
+        Étapes principales :
+        1. Vérifier l'existence du fichier de référence `candidates.csv`.
+        2. Lire et normaliser les noms et prénoms du fichier des candidats.
+        3. Normaliser la colonne `personnalite` du DataFrame d'enquête.
+        4. Fusionner les deux DataFrames sur le nom complet normalisé.
+        5. Réordonner les colonnes et signaler les identifiants manquants.
+
+        Args:
+            df : pd.DataFrame
+                Données nettoyées provenant d'une table du baromètre.
+            population : Population
+                opulation ou sous-échantillon concerné (ex : "Électeurs LFI aux Européennes 2024").
+
+        Returns:
+        --------
+            Dict[str, Any] | None
+                - Si succès : {"df": DataFrame fusionné, "missing": nombre d'identifiants manquants}.
+                 Si erreur ou fichier manquant : None.
+        """
 
         if not self.CANDIDATES_CSV.exists():
             logger.error(f"Le fichier << candidates.csv >> est introuvable : {self.CANDIDATES_CSV}")
@@ -114,9 +155,6 @@ class Cluster17CSVBuilder:
             return False
         
         df = self.clean_survey_data(survey['df'].copy())
-
-        logger.info("📦  Extraction et construction des CSV...")
-        logger.info("")
         result = self.merge_candidates(df, survey['Population'])
 
         if result:
