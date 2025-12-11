@@ -2,7 +2,7 @@ import logging
 import pandas as pd
 import pathlib
 from pathlib import Path
-from typing import Dict, Any 
+from typing import Dict, Any
 from core.settings.logger import setup_logging
 
 setup_logging()
@@ -23,7 +23,7 @@ class Cluster17AnomalyDetector:
             df (pd.DataFrame): DataFrame du sondage avec les colonnes intention_mention_1..4
 
             path (Path): Répertoire où seront enregistrés les anomalies en fichier TXT.
-        """        
+        """
 
         if not isinstance(df, pd.DataFrame):
             logger.error("Le paramètre 'df' doit être un objet pandas.DataFrame")
@@ -33,32 +33,33 @@ class Cluster17AnomalyDetector:
             raise TypeError("Le paramètre 'df' doit être un objet pandas.DataFrame")
         if not isinstance(path, Path):
             logger.error("Le paramètre 'path' doit être une instance de pathlib.Path.")
-            raise TypeError("Le paramètre 'path' doit être une instance de pathlib.Path.") 
+            raise TypeError("Le paramètre 'path' doit être une instance de pathlib.Path.")
 
         if not path.exists():
             logger.error(f"Le répertoire est introuvable : {path}")
-            raise FileNotFoundError(f"Le répertoire spécifié est introuvable : {path}")       
+            raise FileNotFoundError(f"Le répertoire spécifié est introuvable : {path}")
 
         self.df: pd.DataFrame = df.copy()
-        self.path: Path = path        
+        self.path: Path = path
 
-    REQUIRED_COLUMNS_CANDIDATE = {
-        "candidate_id", "personnalite"
-    }
+    REQUIRED_COLUMNS_CANDIDATE = {"candidate_id", "personnalite"}
 
     REQUIRED_COLUMNS_INTENTION = {
-        "intention_mention_1", "intention_mention_2", "intention_mention_3", "intention_mention_4"
+        "intention_mention_1",
+        "intention_mention_2",
+        "intention_mention_3",
+        "intention_mention_4",
     }
 
     def __get_missing_candidates_id(self) -> Dict[str, Any]:
         """
         Détecte les lignes du DataFrame qui ne possèdent pas de valeur valide dans la colonne `candidate_id`.
-        
+
         Args:
             df (pd.DataFrame): DataFrame du sondage avec les colonnes intention_mention_1..4
-        
+
         Returns:
-            Dict[str, Any]: Un dictionnaire avec les clés suivantes 
+            Dict[str, Any]: Un dictionnaire avec les clés suivantes
                 {
                     "count": int,  # Nombre total de lignes sans `candidate_id`.
                     "rows": (`List[str]`): Liste contenant les noms des personnalités concernées.
@@ -72,42 +73,30 @@ class Cluster17AnomalyDetector:
                 raise KeyError(f"Colonnes manquantes dans le DataFrame : {missing_cols}")
 
             # Détecter les valeurs nulles ou vides dans candidate_id
-            mask_missing = (
-                self.df["candidate_id"].isna()
-                | (self.df["candidate_id"].astype(str).str.strip() == "")
-            )
+            mask_missing = self.df["candidate_id"].isna() | (self.df["candidate_id"].astype(str).str.strip() == "")
 
             # Extraire les noms des personnalités dont l'identifiant de candidat est manquant
             missing_rows = self.df.loc[mask_missing, "personnalite"].dropna().tolist()
 
-            return {
-                "count": len(missing_rows),
-                "names": missing_rows
-            }
-        
+            return {"count": len(missing_rows), "names": missing_rows}
+
         except KeyError as e:
             logger.error(f"Erreur : {e}")
-            raise        
-        
+            raise
+
         except Exception as e:
             logger.error(f"Erreur inattendue lors de la détection des candidats manquants: {e}")
-            return {
-                "count": 0,
-                "names": []
-            }
+            return {"count": 0, "names": []}
 
-
-
-    
     def __get_inconsistent_intentions(self) -> Dict[str, Any]:
         """
         Renvoie les personnalités dont la somme des intentions est différente de 100.
-        
+
         Args:
             df (pd.DataFrame): DataFrame avec les colonnes intention_mention_1..4
-        
+
         Returns:
-            Dict[str, Any]: Un dictionnaire avec les clés suivantes 
+            Dict[str, Any]: Un dictionnaire avec les clés suivantes
                 {
                     "count": int,  # nombre d'incohérences
                     "rows": List[Dict[str, Any]]  # Liste des dicts avec détails par candidat
@@ -142,22 +131,15 @@ class Cluster17AnomalyDetector:
             # Préparez une sortie structurée
             rows = inconsistent[result_columns].to_dict(orient="records")
 
-            return {
-                "count": len(rows),
-                "rows": rows
-            }
-        
+            return {"count": len(rows), "rows": rows}
+
         except KeyError as e:
             logger.error(f"Erreur : {e}")
-            raise           
-        
+            raise
+
         except Exception as e:
             logger.exception(f"Erreur inattendue lors de la vérification des intentions : {e}")
-            return {
-                "count": 0,
-                "rows": []
-            }        
-
+            return {"count": 0, "rows": []}
 
     def generate_anomaly_report(self, survey: Dict[str, Any]) -> bool:
         """
@@ -178,7 +160,7 @@ class Cluster17AnomalyDetector:
             - Les scores d’intentions extraits.
             - Le total calculé et la différence par rapport à 100 %.
         - Une description du problème.
-        - Les actions requises pour la correction manuelle.   
+        - Les actions requises pour la correction manuelle.
 
         Args:
             survey : Dict[str, Any]
@@ -190,12 +172,12 @@ class Cluster17AnomalyDetector:
                     - "df" : DataFrame brut de la table extraite.
 
             df (pd.DataFrame): DataFrame du sondage avec les colonnes intention_mention_1..4
-        
+
         Returns:
             bool :
-                True  → si le rapport d’anomalies a été généré avec succès.  
-                False → en cas d’erreur lors de la création ou de l’écriture du fichier.       
-        """           
+                True  → si le rapport d’anomalies a été généré avec succès.
+                False → en cas d’erreur lors de la création ou de l’écriture du fichier.
+        """
 
         # Construire le chemin de sortie
         filename = f"mining_anomalie_{survey.get("Population")}.txt"
@@ -207,7 +189,9 @@ class Cluster17AnomalyDetector:
             intentions = self.__get_inconsistent_intentions()
 
             if candidates_id["count"] == 0 and intentions["count"] == 0:
-                logger.info(f"\t📝 Aucune anomalie détectée pour la population « {survey.get('Population')} » — aucun fichier généré.")
+                logger.info(
+                    f"\t📝 Aucune anomalie détectée pour la population « {survey.get('Population')} » — aucun fichier généré."
+                )
                 return False
 
             with open(output_path, "w", encoding="utf-8") as f:
@@ -236,8 +220,8 @@ class Cluster17AnomalyDetector:
 
                         f.write("ACTION REQUISE :\n")
                         f.write("\t1. Ouvrez le fichier « candidates.csv »\n")
-                        f.write(f"\t2. Vérifiez si le candidat « {name} » est présent dans la base de référence.\n") 
-                        f.write("\t3. Si le candidat est absent, ajoutez-le manuellement dans « candidates.csv ».\n") 
+                        f.write(f"\t2. Vérifiez si le candidat « {name} » est présent dans la base de référence.\n")
+                        f.write("\t3. Si le candidat est absent, ajoutez-le manuellement dans « candidates.csv ».\n")
                         f.write(
                             "\t4. Si le nom existe déjà mais avec une orthographe différente (accents, espaces, etc.),\n"
                             "\t   ne modifiez PAS le fichier « candidates.csv ».\n"
@@ -248,7 +232,6 @@ class Cluster17AnomalyDetector:
 
                         count_total += 1
                         f.write("=" * 80 + "\n\n")
-
 
                 if intentions["count"] > 0:
                     for row in intentions["rows"]:
@@ -279,18 +262,20 @@ class Cluster17AnomalyDetector:
                             "\tLe total des intentions de vote pour ce candidat ne correspond pas à 100 %.\n"
                             "\tCela indique une incohérence dans les pourcentages extraits depuis le PDF, "
                             "qui peut être due à une erreur de reconnaissance, à une valeur manquante ou à un doublon.\n\n"
-                        )           
+                        )
 
                         f.write("ACTION REQUISE :\n")
                         f.write("\t1. Ouvrez le fichier PDF de l’enquête correspondante.\n")
-                        f.write(f"\t2. Recherchez la ligne du candidat « {row['personnalite']} » et vérifiez les pourcentages affichés.\n") 
+                        f.write(
+                            f"\t2. Recherchez la ligne du candidat « {row['personnalite']} » et vérifiez les pourcentages affichés.\n"
+                        )
                         f.write(
                             "\t3. Si une erreur est détectée, corrigez manuellement les valeurs\n"
                             "\t   dans le fichier CSV de la population correspondante :\n"
                             "\t     • Pour un total supérieur à 100 %, vérifiez s’il existe un doublon ou une valeur mal lue.\n"
                             "\t     • Pour un total inférieur à 100 %, vérifiez s’il manque une colonne ou une donnée tronquée.\n"
-                            )
-                        f.write("\t4. Enregistrez le fichier corrigé avant de relancer le traitement.\n\n") 
+                        )
+                        f.write("\t4. Enregistrez le fichier corrigé avant de relancer le traitement.\n\n")
 
                         count_total += 1
                         f.write("=" * 80 + "\n\n")
@@ -305,7 +290,7 @@ class Cluster17AnomalyDetector:
                         f"\t   ⚠️  {candidates_id["count"]} identifiant(s) de candidat introuvable(s). "
                         f"Vérifiez le fichier d’anomalies associé à la population « {survey.get("Population")} »."
                     )
-                
+
                 if intentions["count"] > 0:
                     logger.warning(
                         f"\t   ⚠️  {intentions["count"]} incohérence(s) détectée(s) dans les totaux d’intentions de vote. "
@@ -313,7 +298,7 @@ class Cluster17AnomalyDetector:
                     )
 
             return True
-        
+
         except Exception as e:
             logger.error(f"Erreur lors de la génération du rapport d'anomalies : {e}")
             return False

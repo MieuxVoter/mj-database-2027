@@ -16,7 +16,7 @@ class Cluster17:
     """
     Classe orchestratrice pour l'extraction et la construction des données
     du baromètre Cluster17 à partir d'un fichier PDF.
-    """    
+    """
 
     def __init__(self, file: pathlib.Path, poll_id: str, population: Optional[Population] = None) -> None:
         """
@@ -26,10 +26,10 @@ class Cluster17:
             file : Path
                 Chemin complet vers le fichier PDF à analyser.
             poll_id : str
-                Identifiant du sondage (ex. "cluster17_202511").                
+                Identifiant du sondage (ex. "cluster17_202511").
             population : Population, optionnel
                 Population ou sous-échantillon concerné (ex. Population.LFI)
-        """    
+        """
 
         if not isinstance(file, Path):
             logger.error("Le paramètre 'file' doit être une instance de pathlib.Path.")
@@ -51,7 +51,7 @@ class Cluster17:
 
     def process_data(self, start_page: int = 1) -> None:
         """
-        Exécute le pipeline complet d'extraction et de transformation des données 
+        Exécute le pipeline complet d'extraction et de transformation des données
         du baromètre Cluster17 à partir d’un fichier PDF.
 
         Étapes principales :
@@ -59,20 +59,20 @@ class Cluster17:
             2. Lecture du fichier PDF et détection des pages pertinentes.
             3. Extraction des tableaux et populations pour chaque page détectée.
             4. Construction et export des fichiers CSV correspondants.
-            5. Journalisation des erreurs et résumé des fichiers générés. 
+            5. Journalisation des erreurs et résumé des fichiers générés.
 
         Args
             start_page : int, optionnel
-                Numéro de page à partir duquel commencer l’analyse.  
-                Par défaut : 1.     
+                Numéro de page à partir duquel commencer l’analyse.
+                Par défaut : 1.
 
         Returns
-            Cette méthode ne renvoie pas de valeur.  
-            Les résultats sont enregistrés sur disque (fichiers CSV) 
-            et les événements sont consignés dans les logs.                              
-        """            
+            Cette méthode ne renvoie pas de valeur.
+            Les résultats sont enregistrés sur disque (fichiers CSV)
+            et les événements sont consignés dans les logs.
+        """
         try:
-            # Si le niveau de log est DEBUG, tous les fichiers `.csv` et `.txt` existants 
+            # Si le niveau de log est DEBUG, tous les fichiers `.csv` et `.txt` existants
             # dans le dossier du PDF sont supprimés avant le traitement.
             if logger.isEnabledFor(logging.INFO):
                 try:
@@ -82,16 +82,15 @@ class Cluster17:
                 except Exception as e:
                     logger.warning(f"Impossible de supprimer certains fichiers avant traitement : {e}")
 
-
             logger.info("🔍  Détection et extraction des pages de données... ")
-            logger.info("="*70)
+            logger.info("=" * 70)
 
             try:
                 pages = list(extract_pages(str(self.file)))
             except Exception as e:
                 logger.error(f"Erreur inattendue lors de la lecture du fichier PDF : {e}")
                 return
-            
+
             total_pages = len(pages)
 
             # Commencer l'extraction de tables et populations
@@ -113,9 +112,9 @@ class Cluster17:
 
             logger.info(f"📊  {len(data_pages)} page(s) de données détectée(s) :")
             logger.info("")
-            
-            # Obtenir les tableaux et les populations 
-            surveys : List[Dict[str, Any]] = []
+
+            # Obtenir les tableaux et les populations
+            surveys: List[Dict[str, Any]] = []
             for page in data_pages:
                 try:
                     survey_data = process_extractor.get_tables_population(page)
@@ -132,11 +131,11 @@ class Cluster17:
 
             logger.info("")
             logger.info("📦  Extraction et construction des CSV...")
-            logger.info("="*70)
+            logger.info("=" * 70)
 
             # Commencer la création des CSV
             process_builder = Cluster17CSVBuilder(self.file.parent, self.poll_id)
-            
+
             nb_csv_created = 0
             for survey in surveys:
                 try:
@@ -149,7 +148,7 @@ class Cluster17:
                     )
 
             logger.info("")
-            logger.info("="*70)
+            logger.info("=" * 70)
             logger.info(f"✅  {nb_csv_created} fichier(s) CSV généré(s)")
             logger.info("")
 
@@ -159,4 +158,4 @@ class Cluster17:
 
         except Exception as e:
             logger.exception(f"Erreur inattendue lors du traitement du fichier {self.file} : {e}")
-            raise        
+            raise

@@ -2,7 +2,7 @@ import pathlib
 import logging
 from pathlib import Path
 import pandas as pd
-from typing import Dict, Any 
+from typing import Dict, Any
 from core.settings.logger import setup_logging
 from core.helpers import normalize
 from core.population import Population
@@ -14,7 +14,7 @@ logger = logging.getLogger("app")
 
 class Cluster17CSVBuilder:
     """
-    Classe responsable de la génération et du nettoyage des fichiers CSV 
+    Classe responsable de la génération et du nettoyage des fichiers CSV
     pour le baromètre Cluster17.
     """
 
@@ -35,7 +35,7 @@ class Cluster17CSVBuilder:
         if not isinstance(poll_id, str):
             logger.error("Le paramètre 'poll_id' doit être une chaîne de caractères.")
             raise TypeError("Le paramètre 'poll_id' doit être une chaîne de caractères.")
-        
+
         if not path.exists():
             logger.error(f"Le répertoire est introuvable : {path}")
             raise FileNotFoundError(f"Le répertoire spécifié est introuvable : {path}")
@@ -49,7 +49,7 @@ class Cluster17CSVBuilder:
         "vous la soutenez",
         "vous l'appreciez",
         "vous ne l'appreciez pas",
-        "vous n'avez pas d'avis sur elle/ vous ne la connaissez pas"
+        "vous n'avez pas d'avis sur elle/ vous ne la connaissez pas",
     ]
 
     # Mappage des nouveaux noms de colonnes
@@ -57,15 +57,18 @@ class Cluster17CSVBuilder:
         "vous la soutenez": "intention_mention_1",
         "vous l'appreciez": "intention_mention_2",
         "vous ne l'appreciez pas": "intention_mention_3",
-        "vous n'avez pas d'avis sur elle/ vous ne la connaissez pas": "intention_mention_4"
+        "vous n'avez pas d'avis sur elle/ vous ne la connaissez pas": "intention_mention_4",
     }
 
     # Chemin du fichier de référence des candidats
-    CANDIDATES_CSV: Path  = Path(__file__).resolve().parent.parent.parent / "candidates.csv"
+    CANDIDATES_CSV: Path = Path(__file__).resolve().parent.parent.parent / "candidates.csv"
 
     EXPECTED_COLS = {
-        "personnalite", "intention_mention_1", "intention_mention_2",
-        "intention_mention_3", "intention_mention_4"
+        "personnalite",
+        "intention_mention_1",
+        "intention_mention_2",
+        "intention_mention_3",
+        "intention_mention_4",
     }
 
     def __clean_survey_data(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -96,16 +99,16 @@ class Cluster17CSVBuilder:
             if col != "personnalite":
                 df[col] = (
                     df[col]
-                    .astype(str)                        
-                    .str.replace("%", "", regex=False)  
-                    .str.strip()                        
-                    .replace("", pd.NA)                 
-                    .astype(float)                      
-                    .astype("Int64")                    
+                    .astype(str)
+                    .str.replace("%", "", regex=False)
+                    .str.strip()
+                    .replace("", pd.NA)
+                    .astype(float)
+                    .astype("Int64")
                 )
 
         return df
-    
+
     def __merge_candidates(self, df: pd.DataFrame, population: Population) -> Dict[str, Any] | None:
         """
         Fusionne les données d'enquête avec le fichier de référence des candidats.
@@ -140,8 +143,12 @@ class Cluster17CSVBuilder:
         try:
 
             ORDERED_COLUMNS = [
-                "personnalite", "candidate_id", "intention_mention_1",
-                 "intention_mention_2", "intention_mention_3", "intention_mention_4"
+                "personnalite",
+                "candidate_id",
+                "intention_mention_1",
+                "intention_mention_2",
+                "intention_mention_3",
+                "intention_mention_4",
             ]
 
             df_candidates = pd.read_csv(self.CANDIDATES_CSV)
@@ -154,9 +161,7 @@ class Cluster17CSVBuilder:
             df["personnalite_norm"] = df["personnalite"].apply(normalize)
 
             df_merged = df.merge(
-                df_candidates[["personnalite_norm", "candidate_id"]],
-                on=["personnalite_norm"],
-                how="left"
+                df_candidates[["personnalite_norm", "candidate_id"]], on=["personnalite_norm"], how="left"
             )
 
             df_merged.drop(columns=["personnalite_norm"], inplace=True)
@@ -164,15 +169,10 @@ class Cluster17CSVBuilder:
             nb_missing = df_merged["candidate_id"].isnull().sum()
 
             return {"df": df_merged, "missing": nb_missing}
-        
+
         except Exception as e:
             logger.error(f"Erreur inattendue lors de la fusion des candidats : {e}")
             return None
-
-
-
-
-
 
     def create_csv(self, survey: Dict[str, Any], overwrite: bool = False) -> bool:
         """
@@ -182,7 +182,7 @@ class Cluster17CSVBuilder:
         1. Nettoyage et normalisation des données brutes issues du PDF.
         2. Fusion avec le fichier de référence des candidats (`candidates.csv`).
         3. Génération du fichier CSV final dans le répertoire de sortie.
-        4. Détection automatique et export des anomalies éventuelles (Cluster17AnomalyDetector). 
+        4. Détection automatique et export des anomalies éventuelles (Cluster17AnomalyDetector).
 
         Args
             survey : Dict[str, Any]
@@ -193,13 +193,13 @@ class Cluster17CSVBuilder:
                     - "Étiquette de population" : description textuelle du sous-échantillon.
                     - "df" : DataFrame brut de la table extraite.
             overwrite : bool, optionnel
-                Si True, écrase le fichier existant.  
-                Si False (par défaut), saute la création si le fichier existe déjà.    
+                Si True, écrase le fichier existant.
+                Si False (par défaut), saute la création si le fichier existe déjà.
 
         Returns
             bool
-                True  → si le fichier CSV a été généré avec succès.  
-                False → si une erreur est survenue à une quelconque étape du processus.                           
+                True  → si le fichier CSV a été généré avec succès.
+                False → si une erreur est survenue à une quelconque étape du processus.
         """
 
         # Construire le chemin de sortie
@@ -210,25 +210,26 @@ class Cluster17CSVBuilder:
         if output_path.exists() and not overwrite:
             logger.warning(f"⏭️  {filename} existe déjà (utilizez --overwrite pour écraser)")
             return False
-        
+
         try:
 
             try:
-                df = self.__clean_survey_data(survey['df'].copy())
+                df = self.__clean_survey_data(survey["df"].copy())
 
                 if df.empty:
                     logger.warning(f"Le tableau pour {survey.get('population', 'Inconnue')} est vide. CSV non créé.")
                     return False
             except Exception as e:
-                logger.error(f"Erreur inattendue lors du nettoyage des données pour {survey.get('Population', 'Inconnue')} : {e}")
-
+                logger.error(
+                    f"Erreur inattendue lors du nettoyage des données pour {survey.get('Population', 'Inconnue')} : {e}"
+                )
 
             missing_cols = self.EXPECTED_COLS - set(df.columns)
             if missing_cols:
                 logger.error(f"Colonnes manquantes dans {filename} : {missing_cols}")
                 return False
 
-            result = self.__merge_candidates(df, survey['Population'])
+            result = self.__merge_candidates(df, survey["Population"])
             if not result:
                 logger.error(f"Échec de la fusion des candidats pour {survey.get('population', 'Inconnue')}")
                 return False
@@ -257,13 +258,3 @@ class Cluster17CSVBuilder:
         except Exception as e:
             logger.error(f"Erreur inattendue lors de la création du CSV {filename} : {e}")
             return False
-
-
-
-
-
-
-
-
-
-

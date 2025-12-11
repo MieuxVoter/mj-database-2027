@@ -64,5 +64,6 @@ def main():
     process = Cluster17(args.file, POLL_ID, args.population)
     process.process_data()
 
+
 if __name__ == "__main__":
     sys.exit(main())

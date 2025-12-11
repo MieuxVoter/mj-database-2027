@@ -31,7 +31,7 @@ class Cluster17PDFExtractor:
                 Chemin complet vers le fichier PDF à analyser.
             population : Population, optionnel
                 Population ou sous-échantillon concerné (ex. Population.LFI)
-        """        
+        """
 
         if not isinstance(file, Path):
             logger.error("Le paramètre 'file' doit être une instance de pathlib.Path.")
@@ -45,7 +45,7 @@ class Cluster17PDFExtractor:
             raise FileNotFoundError(f"Le fichier spécifié est introuvable : {file}")
 
         self.file: Path = file
-        self.population: Optional[Population] = population    
+        self.population: Optional[Population] = population
 
     # Colonnes à trouver
     COLUMN_HEADER_PATTERNS = [
@@ -55,7 +55,6 @@ class Cluster17PDFExtractor:
         r"vous\s+n['’]avez\s+pas\s+d['’]avis\s+sur\s+elle",
         r"vous\s+ne\s+la\s+connaissez\s+pas",
     ]
-
 
     def is_page_relevant(self, page_layout) -> bool:
         """
@@ -115,42 +114,42 @@ class Cluster17PDFExtractor:
         has_expected_columns = sum(bool(re.search(p, normalized_text)) for p in self.COLUMN_HEADER_PATTERNS) >= 2
 
         return has_title and has_table_structure and has_numeric_density and has_expected_columns
-    
 
     def get_tables_population(self, page_number: int) -> List[Dict[str, Any]] | None:
         """
         Extrait d'une page PDF les **tableaux** et les **blocs de texte (légendes ou populations)**
         qui se trouvent immédiatement au-dessus d'eux, en renvoyant les deux éléments dans une structure combinée.
-        
+
         Args:
-            page_number: Numéro de la page à analyser (indexée 1). 
+            page_number: Numéro de la page à analyser (indexée 1).
                 Il doit être compris entre 1 et le nombre total de pages du PDF.
 
         Returns:
             List[Dict[str, Any]] | None
                     Une liste de dictionnaires, où chaque élément représente un tableau et son contexte textuel associé.
 
-            Si aucun tableau n'est détecté sur la page, renvoie `None`.        
+            Si aucun tableau n'est détecté sur la page, renvoie `None`.
         """
 
         logger.debug("")
-        logger.debug("="*50)
+        logger.debug("=" * 50)
         logger.debug(f"Obtenir des tables et ses populations — Page: {page_number}")
-        logger.debug("="*50)
+        logger.debug("=" * 50)
         logger.debug("")
 
         with pdfplumber.open(self.file) as pdf:
 
             total_pages = len(pdf.pages)
-            
-            if page_number < 1 or page_number > len(pdf.pages):
-                logging.error(f"Numéro de page invalide: {page_number}. "
-                                f"Le PDF ne comporte que {total_pages} pages.")
-                raise ValueError(f"Le PDF ne comporte que {total_pages} pages.")
-            
-            page = pdf.pages[page_number - 1]    
 
-            # Détecter les tables 
+            if page_number < 1 or page_number > len(pdf.pages):
+                logging.error(
+                    f"Numéro de page invalide: {page_number}. " f"Le PDF ne comporte que {total_pages} pages."
+                )
+                raise ValueError(f"Le PDF ne comporte que {total_pages} pages.")
+
+            page = pdf.pages[page_number - 1]
+
+            # Détecter les tables
             table_objects = sorted(page.find_tables(), key=lambda t: t.bbox[1])
             bboxes = [t.bbox for t in table_objects]
 
@@ -164,21 +163,18 @@ class Cluster17PDFExtractor:
             survey_data = []
             for idx, (x0, y_top, x1, y_bottom) in enumerate(bboxes, start=1):
                 try:
-                    logger.debug(f"Obtenir les information du table {idx}")  
-                    logger.debug(f"bbox table :\t({x0:.1f}, {y_top:.1f}, {x1:.1f}, {y_bottom:.1f})") 
+                    logger.debug(f"Obtenir les information du table {idx}")
+                    logger.debug(f"bbox table :\t({x0:.1f}, {y_top:.1f}, {x1:.1f}, {y_bottom:.1f})")
 
                     # Extraire texte avant la table (caption / population)
-                    segment_words = [w for w in words if y_prev_bottom <= w["bottom"] <= y_top]  
+                    segment_words = [w for w in words if y_prev_bottom <= w["bottom"] <= y_top]
                     sorted_words = sorted(segment_words, key=lambda w: (w["top"], w["x0"]))
-                    segment_texte = " ".join(w["text"] for w in sorted_words)  
+                    segment_texte = " ".join(w["text"] for w in sorted_words)
 
                     # supprimer le titre principal
                     clean_text = re.sub(
-                        r"BAROMÈTRE DES PERSONNALITÉS\s+[A-ZÉÈÊÎÔÛÂÀÙÇ\-]+",
-                        "",
-                        segment_texte,
-                        flags=re.IGNORECASE
-                    ).strip()  
+                        r"BAROMÈTRE DES PERSONNALITÉS\s+[A-ZÉÈÊÎÔÛÂÀÙÇ\-]+", "", segment_texte, flags=re.IGNORECASE
+                    ).strip()
 
                     population = None
                     population_label = None
@@ -187,8 +183,8 @@ class Cluster17PDFExtractor:
                         population_detected = Population.detect_from_text(clean_text)
                         if population_detected:
                             population, population_label = population_detected
-                            logger.debug(f"population:\t{population}")     
-                        
+                            logger.debug(f"population:\t{population}")
+
                     # Extraire la table
                     df = pd.DataFrame(table_objects[idx - 1].extract())
 
@@ -201,17 +197,19 @@ class Cluster17PDFExtractor:
                     logger.debug(f"columns: {df.columns.tolist()}")
                     logger.debug("Aperçu du DataFrame :\n" + tabulate(df.head(), headers="keys", tablefmt="psql"))
 
-                    survey_data.append({
-                        "Page": page_number,
-                        "Table id": idx,
-                        "Légende de tableau": clean_text,
-                        "Population": population,
-                        "Étiquette de population": population_label,
-                        "df": df
-                    })
-                                        
-                    y_prev_bottom = y_bottom 
-                    logger.debug("")   
+                    survey_data.append(
+                        {
+                            "Page": page_number,
+                            "Table id": idx,
+                            "Légende de tableau": clean_text,
+                            "Population": population,
+                            "Étiquette de population": population_label,
+                            "df": df,
+                        }
+                    )
+
+                    y_prev_bottom = y_bottom
+                    logger.debug("")
                 except Exception as e:
                     logger.warning(f"Erreur inattendue lors du traitement de la table {idx} page {page_number} : {e}")
                     continue
