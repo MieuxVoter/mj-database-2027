@@ -12,12 +12,37 @@ logger = logging.getLogger("app")
 
 
 class Cluster17CSVBuilder:
+    """
+    Classe responsable de la génération et du nettoyage des fichiers CSV 
+    pour le baromètre Cluster17.
+    """
 
-    def __init__(self, path: pathlib.Path, poll_id: str):
+    def __init__(self, path: pathlib.Path, poll_id: str) -> None:
+        """
+        Initialise le constructeur du générateur CSV.
+
+        Args:
+            path : Path
+                Répertoire où seront enregistrés les fichiers CSV.
+            poll_id : str
+                Identifiant du sondage (ex. "cluster17_202511").
+        """
+
+        if not isinstance(path, Path):
+            logger.error("Le paramètre 'path' doit être une instance de pathlib.Path.")
+            raise TypeError("Le paramètre 'path' doit être une instance de pathlib.Path.")
+        if not isinstance(poll_id, str):
+            logger.error("Le paramètre 'poll_id' doit être une chaîne de caractères.")
+            raise TypeError("Le paramètre 'poll_id' doit être une chaîne de caractères.")
         
-        self.path = path
-        self.poll_id = poll_id
+        if not path.exists():
+            logger.error(f"Le fichier répertoire  est introuvable : {path}")
+            raise FileNotFoundError(f"Le répertoire  spécifié est introuvable : {path}")
 
+        self.path: Path = path
+        self.poll_id: str = poll_id
+
+    # Colonnes à conserver
     COLUMNS_KEEP = [
         "personnalite",
         "vous la soutenez",
@@ -26,6 +51,7 @@ class Cluster17CSVBuilder:
         "vous n'avez pas d'avis sur elle/ vous ne la connaissez pas"
     ]
 
+    # Mappage des nouveaux noms de colonnes
     RENAME_COLUMNS = {
         "vous la soutenez": "intention_mention_1",
         "vous l'appreciez": "intention_mention_2",
@@ -33,7 +59,13 @@ class Cluster17CSVBuilder:
         "vous n'avez pas d'avis sur elle/ vous ne la connaissez pas": "intention_mention_4"
     }
 
-    CANDIDATES_CSV = pathlib.Path(__file__).parent.parent.parent / "candidates.csv"
+    # Chemin du fichier de référence des candidats
+    CANDIDATES_CSV: Path  = Path(__file__).resolve().parent.parent.parent / "candidates.csv"
+
+    EXPECTED_COLS = {
+        "personnalite", "intention_mention_1", "intention_mention_2",
+        "intention_mention_3", "intention_mention_4"
+    }
 
     def clean_survey_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -153,37 +185,54 @@ class Cluster17CSVBuilder:
             logger.warning(f"⏭️  {filename} existe déjà (utilizez --overwrite pour écraser)")
             return False
         
-        df = self.clean_survey_data(survey['df'].copy())
-        result = self.merge_candidates(df, survey['Population'])
+        try:
+        
+            df = self.clean_survey_data(survey['df'].copy())
 
-        if result:
+            if df.empty:
+                logger.warning(f"Le tableau pour {survey.get('population', 'Inconnue')} est vide. CSV non créé.")
+                return False
+
+            missing_cols = self.EXPECTED_COLS - set(df.columns)
+            if missing_cols:
+                logger.error(f"Colonnes manquantes dans {filename} : {missing_cols}")
+                return False
+
+            result = self.merge_candidates(df, survey['Population'])
+            if not result:
+                logger.error(f"Échec de la fusion des candidats pour {survey.get('population', 'Inconnue')}")
+                return False
+
             df = result["df"]
             nb_missing = result["missing"]
+
             df.to_csv(output_path, index=False, encoding="utf-8")
+
             logger.info(f"✅ CSV généré : {output_path}")
+            logger.info(f"\t📄 Page: {survey.get('Page', 'N/A')}")
             logger.info(f"\t📊 {df["candidate_id"].notnull().sum()} candidats trouvés")
             if nb_missing > 0:
                 logger.warning(
-                    f"\t{nb_missing} identifiant(s) de candidat introuvable(s). "
-                    f"Vérifiez le fichier d’anomalies associé à la population « {survey['Population']} »."
+                    f"\t⚠️  {nb_missing} identifiant(s) de candidat introuvable(s). "
+                    f"Vérifiez le fichier d’anomalies associé à la population « {survey.get('Population', 'Inconnue')} »."
                 )
-            logger.info(f"\t🧠 Population : {survey['Étiquette de population']}")
+            logger.info(f"\t🧠 Population : {survey.get('Étiquette de population', 'Inconnue')}")
             logger.info(f"\t📋 Type : {self.poll_id}")
 
+                ##### AQUI es doinde tengo que crear la validacion y escribirla por cada archivo para que se escriba
 
+            return True
 
-            ##### AQUI es doinde tengo que crear la validacion y escribirla por cada archivo para que se escriba
-
-
-
-
-
-
-
+        except Exception as e:
+            logger.error(f"Erreur inattendue lors de la création du CSV {filename} : {e}")
+            return False
 
 
 
 
 
-        return True
+
+
+
+
 

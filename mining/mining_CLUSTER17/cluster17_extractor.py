@@ -1,7 +1,8 @@
 import pathlib
+from pathlib import Path
 import logging
 import re
-from typing import List, Dict, Any
+from typing import Optional, List, Dict, Any
 import pdfplumber
 import pandas as pd
 from tabulate import tabulate
@@ -16,7 +17,37 @@ logger = logging.getLogger("app")
 
 
 class Cluster17PDFExtractor:
+    """
+    Classe responsable de l'extraction des tableaux et des légendes (captions)
+    à partir d'un fichier PDF du baromètre Cluster17.
+    """
 
+    def __init__(self, file: pathlib.Path, population: Optional[Population] = None) -> None:
+        """
+        Initialise l'extracteur PDF pour le baromètre Cluster17.
+
+        Args:
+            file : Path
+                Chemin complet vers le fichier PDF à analyser.
+            population : Population, optionnel
+                Population ou sous-échantillon concerné (ex. Population.LFI)
+        """        
+
+        if not isinstance(file, Path):
+            logger.error("Le paramètre 'file' doit être une instance de pathlib.Path.")
+            raise TypeError("Le paramètre 'file' doit être une instance de pathlib.Path.")
+        if population is not None and not isinstance(population, Population):
+            logger.error("Le paramètre 'population' doit être une instance de Population ou None.")
+            raise TypeError("Le paramètre 'population' doit être une instance de Population ou None.")
+
+        if not file.exists():
+            logger.error(f"Le fichier spécifié est introuvable : {file}")
+            raise FileNotFoundError(f"Le fichier spécifié est introuvable : {file}")
+
+        self.file: Path = file
+        self.population: Optional[Population] = population    
+
+    # Colonnes à trouver
     COLUMN_HEADER_PATTERNS = [
         r"vous\s+la\s+soutenez",
         r"vous\s+l['’]appreciez",
@@ -25,10 +56,6 @@ class Cluster17PDFExtractor:
         r"vous\s+ne\s+la\s+connaissez\s+pas",
     ]
 
-    def __init__(self, file: pathlib.Path, population: Population | None = None) -> None:
-
-        self.file = file
-        self.population = population
 
     def _is_page_relevant(self, page_layout) -> bool:
         """
@@ -136,53 +163,57 @@ class Cluster17PDFExtractor:
             y_prev_bottom = 0
             survey_data = []
             for idx, (x0, y_top, x1, y_bottom) in enumerate(bboxes, start=1):
-                logger.debug(f"Obtenir les information du table {idx}")  
-                logger.debug(f"bbox table :\t({x0:.1f}, {y_top:.1f}, {x1:.1f}, {y_bottom:.1f})") 
+                try:
+                    logger.debug(f"Obtenir les information du table {idx}")  
+                    logger.debug(f"bbox table :\t({x0:.1f}, {y_top:.1f}, {x1:.1f}, {y_bottom:.1f})") 
 
-                # Extraire texte avant la table (caption / population)
-                segment_words = [w for w in words if y_prev_bottom <= w["bottom"] <= y_top]  
-                sorted_words = sorted(segment_words, key=lambda w: (w["top"], w["x0"]))
-                segment_texte = " ".join(w["text"] for w in sorted_words)  
+                    # Extraire texte avant la table (caption / population)
+                    segment_words = [w for w in words if y_prev_bottom <= w["bottom"] <= y_top]  
+                    sorted_words = sorted(segment_words, key=lambda w: (w["top"], w["x0"]))
+                    segment_texte = " ".join(w["text"] for w in sorted_words)  
 
-                # supprimer le titre principal
-                clean_text = re.sub(
-                    r"BAROMÈTRE DES PERSONNALITÉS\s+[A-ZÉÈÊÎÔÛÂÀÙÇ\-]+",
-                    "",
-                    segment_texte,
-                    flags=re.IGNORECASE
-                ).strip()  
+                    # supprimer le titre principal
+                    clean_text = re.sub(
+                        r"BAROMÈTRE DES PERSONNALITÉS\s+[A-ZÉÈÊÎÔÛÂÀÙÇ\-]+",
+                        "",
+                        segment_texte,
+                        flags=re.IGNORECASE
+                    ).strip()  
 
-                population = None
-                population_label = None
-                if clean_text:
-                    logger.debug(f"Légende:\t{clean_text}")
-                    population_detected = Population.detect_from_text(clean_text)
-                    if population_detected:
-                        population, population_label = population_detected
-                        logger.debug(f"population:\t{population}")     
-                    
-                # Extraire la table
-                df = pd.DataFrame(table_objects[idx - 1].extract())
+                    population = None
+                    population_label = None
+                    if clean_text:
+                        logger.debug(f"Légende:\t{clean_text}")
+                        population_detected = Population.detect_from_text(clean_text)
+                        if population_detected:
+                            population, population_label = population_detected
+                            logger.debug(f"population:\t{population}")     
+                        
+                    # Extraire la table
+                    df = pd.DataFrame(table_objects[idx - 1].extract())
 
-                # Nettoyage du DataFrame
-                df = df.dropna(how="all").reset_index(drop=True)
-                if not df.empty:
-                    df.columns = df.iloc[0]
-                    df = df[1:].reset_index(drop=True)
+                    # Nettoyage du DataFrame
+                    df = df.dropna(how="all").reset_index(drop=True)
+                    if not df.empty:
+                        df.columns = df.iloc[0]
+                        df = df[1:].reset_index(drop=True)
 
-                logger.debug(f"columns: {df.columns.tolist()}")
-                logger.debug("Aperçu du DataFrame :\n" + tabulate(df.head(), headers="keys", tablefmt="psql"))
+                    logger.debug(f"columns: {df.columns.tolist()}")
+                    logger.debug("Aperçu du DataFrame :\n" + tabulate(df.head(), headers="keys", tablefmt="psql"))
 
-                survey_data.append({
-                    "Page": page_number,
-                    "Table id": idx,
-                    "Légende de tableau": clean_text,
-                    "Population": population,
-                    "Étiquette de population": population_label,
-                    "df": df
-                })
-                                    
-                y_prev_bottom = y_bottom 
-                logger.debug("")   
+                    survey_data.append({
+                        "Page": page_number,
+                        "Table id": idx,
+                        "Légende de tableau": clean_text,
+                        "Population": population,
+                        "Étiquette de population": population_label,
+                        "df": df
+                    })
+                                        
+                    y_prev_bottom = y_bottom 
+                    logger.debug("")   
+                except Exception as e:
+                    logger.warning(f"Erreur lors du traitement de la table {idx} page {page_number} : {e}")
+                    continue
 
         return survey_data
