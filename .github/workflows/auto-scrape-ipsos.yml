@@ -35,7 +35,11 @@ jobs:
       
       - name: Install dependencies
         run: |
-          pip install requests beautifulsoup4
+          pip install requests beautifulsoup4 playwright playwright-stealth
+
+      - name: Install playwright-stealth patch
+        run: |
+          playwright install chromium 
       
       - name: Check if current month's poll already exists
         id: check_existing
@@ -56,6 +60,14 @@ jobs:
             echo "✓ Poll $EXPECTED_POLL_ID does not exist yet - will attempt to scrape"
           fi
       
+      - name: Cache browser profile
+        uses: actions/cache@v4
+        with:
+          path: scraping/scraping_IPSOS/chrome_profile
+          key: chrome-profile-${{ github.run_id }}
+          restore-keys: |
+            chrome-profile-
+
       - name: Run IPSOS scraper
         if: steps.check_existing.outputs.poll_exists == 'false'
         id: scrape

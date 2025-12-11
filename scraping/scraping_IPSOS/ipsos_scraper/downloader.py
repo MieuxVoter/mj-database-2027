@@ -4,22 +4,22 @@ Downloader Module
 Functions for downloading Flourish visualizations.
 """
 
-import requests
+from playwright.sync_api import Page
+import time
+import random
 
-from .config import get_random_headers
-
-
-def download_flourish_visualization(viz_url: str, session: requests.Session) -> str:
+def download_flourish_visualization(viz_url: str, page: Page) -> str:
     """
-    Download the HTML source of a Flourish visualization.
+    Download the HTML source of a Flourish visualization using Playwright.
 
     Args:
         viz_url: The URL of the Flourish visualization
-        session: requests Session object
+        page: Playwright Page object
 
     Returns:
         The HTML content of the visualization
     """
-    response = session.get(viz_url, timeout=30)
-    response.raise_for_status()
-    return response.text
+    page.goto(viz_url)
+    # Add some human-like delay
+    time.sleep(1 + random.uniform(0, 2))
+    return page.content()
