@@ -8,7 +8,7 @@ from core.population import Population
 from mining.mining_CLUSTER17.cluster17 import Cluster17
 
 # Type de sondage CLUSTER17
-POLL_TYPE = "pt4"
+POLL_ID = "pt4"
 
 # Population de Cluster 17
 POPULATION = Population.by_survey("CLUSTER17")
@@ -61,15 +61,15 @@ def main():
     logger.info(f"👥 Candidats   : {CANDIDATES_CSV}")
     logger.info("")
 
-    process = Cluster17(args.file, args.population)
-    process.extract_data()
+    process = Cluster17(args.file, POLL_ID, args.population)
+    process.process_data()
 
-    logger.info("")
-    logger.info("╔═══════════════════════════════════════════════════════════════════════════╗")
-    logger.info("║ ✅  Fin d’extraction du Cluster 17                                        ║")
-    logger.info("╚═══════════════════════════════════════════════════════════════════════════╝")
-    logger.info(f"📄 PDF         : {args.file}")
-    logger.info(f"📅 Date        : {args.date[:4]}-{args.date[4:]}")
+    # logger.info("")
+    # logger.info("╔═══════════════════════════════════════════════════════════════════════════╗")
+    # logger.info("║ ✅  Fin d’extraction du Cluster 17                                        ║")
+    # logger.info("╚═══════════════════════════════════════════════════════════════════════════╝")
+    # logger.info(f"📄 PDF         : {args.file}")
+    # logger.info(f"📅 Date        : {args.date[:4]}-{args.date[4:]}")
 
 
 if __name__ == "__main__":

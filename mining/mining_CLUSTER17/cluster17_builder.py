@@ -13,9 +13,10 @@ logger = logging.getLogger("app")
 
 class Cluster17CSVBuilder:
 
-    def __init__(self, path: pathlib.Path):
+    def __init__(self, path: pathlib.Path, poll_id: str):
         
         self.path = path
+        self.poll_id = poll_id
 
     COLUMNS_KEEP = [
         "personnalite",
@@ -94,7 +95,6 @@ class Cluster17CSVBuilder:
                 opulation ou sous-échantillon concerné (ex : "Électeurs LFI aux Européennes 2024").
 
         Returns:
-        --------
             Dict[str, Any] | None
                 - Si succès : {"df": DataFrame fusionné, "missing": nombre d'identifiants manquants}.
                  Si erreur ou fichier manquant : None.
@@ -143,7 +143,6 @@ class Cluster17CSVBuilder:
 
     def create_csv(self, survey: Dict[str, Any], overwrite: bool = False) -> bool:
 
-        logger.info("")
 
         # Construire le chemin de sortie
         filename = f"{self.path.name}_{survey['Population']}.csv"
@@ -169,7 +168,12 @@ class Cluster17CSVBuilder:
                     f"Vérifiez le fichier d’anomalies associé à la population « {survey['Population']} »."
                 )
             logger.info(f"\t🧠 Population : {survey['Étiquette de population']}")
-            logger.info(f"\t📋 Type : pt2") ####--> a CAMBIAR
+            logger.info(f"\t📋 Type : {self.poll_id}")
+
+
+
+            ##### AQUI es doinde tengo que crear la validacion y escribirla por cada archivo para que se escriba
+
 
 
 
