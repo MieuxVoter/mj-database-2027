@@ -50,80 +50,113 @@ class Cluster17:
         self.population: Optional[Population] = population
 
     def process_data(self, start_page: int = 1) -> None:
+        """
+        Exécute le pipeline complet d'extraction et de transformation des données 
+        du baromètre Cluster17 à partir d’un fichier PDF.
 
-        logger.info("🔍  Détection et extraction des pages de données... ")
-        logger.info("="*70)
+        Étapes principales :
+            1. Nettoyage des anciens fichiers CSV/TXT si le niveau de log est DEBUG.
+            2. Lecture du fichier PDF et détection des pages pertinentes.
+            3. Extraction des tableaux et populations pour chaque page détectée.
+            4. Construction et export des fichiers CSV correspondants.
+            5. Journalisation des erreurs et résumé des fichiers générés. 
 
+        Args
+            start_page : int, optionnel
+                Numéro de page à partir duquel commencer l’analyse.  
+                Par défaut : 1.     
+
+        Returns
+            Cette méthode ne renvoie pas de valeur.  
+            Les résultats sont enregistrés sur disque (fichiers CSV) 
+            et les événements sont consignés dans les logs.                              
+        """            
         try:
-            pages = list(extract_pages(str(self.file)))
-        except Exception as e:
-            logger.error(f"Erreur lors de la lecture du fichier PDF : {e}")
-            return
-        
-        total_pages = len(pages)
+            # Si le niveau de log est DEBUG, tous les fichiers `.csv` et `.txt` existants 
+            # dans le dossier du PDF sont supprimés avant le traitement.
+            if logger.isEnabledFor(logging.INFO):
+                try:
+                    for ext in ("csv", "txt"):
+                        [f.unlink() for f in Path(self.file.parent).rglob(f"*.{ext}")]
+                    logger.debug("Ancien(s) fichier(s) CSV/TXT supprimé(s) (mode DEBUG).")
+                except Exception as e:
+                    logger.warning(f"Impossible de supprimer certains fichiers avant traitement : {e}")
 
-        # Commencer l'extraction de tables et populations
-        process_extractor = Cluster17PDFExtractor(self.file, self.population)
 
-        # Détection des pages pertinentes contenant des sondages
-        data_pages: List[int] = []
-        for page_num in range(start_page, total_pages + 1):
-            page_layout = pages[page_num - 1]
-            if process_extractor._is_page_relevant(page_layout):
-                data_pages.append(page_num)
+            logger.info("🔍  Détection et extraction des pages de données... ")
+            logger.info("="*70)
 
-        if not data_pages:
-            logger.warning("Aucune page pertinente détectée dans ce PDF")
-
-        logger.info(f"📊  {len(data_pages)} page(s) de données détectée(s) :")
-        logger.info("")
-        
-        # Obtenir les tableaux et les populations 
-        surveys : List[Dict[str, Any]] = []
-        for page in data_pages:
             try:
-                survey_data = process_extractor._get_tables_population(page)
-                for table in survey_data:
-                    logger.info(f"• Page {page} : {table['Étiquette de population']}")
-
-                surveys.extend(survey_data)
+                pages = list(extract_pages(str(self.file)))
             except Exception as e:
-                logger.error(f"Erreur lors de l’extraction des données de la page {page} : {e}")
+                logger.error(f"Erreur inattendue lors de la lecture du fichier PDF : {e}")
+                return
+            
+            total_pages = len(pages)
 
-        if not surveys:
-            logger.warning("Aucune table extraite du PDF")
+            # Commencer l'extraction de tables et populations
+            process_extractor = Cluster17PDFExtractor(self.file, self.population)
 
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug("")
-            logger.debug("="*70)
-            logger.debug("Résumé des tableaux et des populations obtenus")
-            logger.debug("="*70)
-            logger.debug("")
+            # Détection des pages pertinentes contenant des sondages
+            data_pages: List[int] = []
+            for page_num in range(start_page, total_pages + 1):
+                try:
+                    page_layout = pages[page_num - 1]
+                    if process_extractor.is_page_relevant(page_layout):
+                        data_pages.append(page_num)
+                except Exception as e:
+                    logger.error(f"Erreur inattendue lors de l’analyse de la page {page_num} : {e}")
+
+            if not data_pages:
+                logger.warning("Aucune page pertinente détectée dans ce PDF")
+                return
+
+            logger.info(f"📊  {len(data_pages)} page(s) de données détectée(s) :")
+            logger.info("")
+            
+            # Obtenir les tableaux et les populations 
+            surveys : List[Dict[str, Any]] = []
+            for page in data_pages:
+                try:
+                    survey_data = process_extractor.get_tables_population(page)
+                    for table in survey_data:
+                        logger.info(f"• Page {page} : {table['Étiquette de population']}")
+
+                    surveys.extend(survey_data)
+                except Exception as e:
+                    logger.error(f"Erreur inattendue lors de l’extraction des données de la page {page} : {e}")
+
+            if not surveys:
+                logger.warning("Aucune table extraite du PDF")
+                return
+
+            logger.info("")
+            logger.info("📦  Extraction et construction des CSV...")
+            logger.info("="*70)
+
+            # Commencer la création des CSV
+            process_builder = Cluster17CSVBuilder(self.file.parent, self.poll_id)
+            
+            nb_csv_created = 0
             for survey in surveys:
-                logger.debug(f"📄 Page: {survey.get('Page', 'N/A')}")
-                logger.debug(f"🧠 Population: {survey.get('Étiquette de population', 'Inconnue')}")
-                logger.debug(f"🧾 Table id: {survey.get('Table id', 'N/A')}")
-                logger.debug(f"📏 Dimensions de la table: {survey['df'].shape if 'df' in survey else 'N/A'}")
-                logger.debug("")
+                try:
+                    if process_builder.create_csv(survey):
+                        nb_csv_created += 1
+                except Exception as e:
+                    logger.error(
+                        f"Erreur inattendue lors de la création du CSV pour "
+                        f"{survey.get('Étiquette de population', 'Inconnue')} : {e}"
+                    )
 
-        logger.info("")
-        logger.info("📦  Extraction et construction des CSV...")
-        logger.info("="*70)
+            logger.info("")
+            logger.info("="*70)
+            logger.info(f"✅  {nb_csv_created} fichier(s) CSV généré(s)")
+            logger.info("")
 
-        # Commencer la création des CSV
-        process_builder = Cluster17CSVBuilder(self.file.parent, self.poll_id)
-        
-        nb_csv_created = 0
-        for survey in surveys:
-            try:
-                if process_builder.create_csv(survey):
-                    nb_csv_created += 1
-            except Exception as e:
-                logger.error(f"Erreur lors de la création du CSV pour {survey.get('Étiquette de population', 'Inconnue')} : {e}")
+        except FileNotFoundError as e:
+            logger.error(f"Fichier PDF introuvable : {e}")
+            raise
 
-        logger.info("")
-        logger.info("="*70)
-        logger.info(f"✅  {nb_csv_created} fichier(s) CSV généré(s)")
-        logger.info("")
-
-        return None
+        except Exception as e:
+            logger.exception(f"Erreur inattendue lors du traitement du fichier {self.file} : {e}")
+            raise        

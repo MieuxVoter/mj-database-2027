@@ -64,13 +64,5 @@ def main():
     process = Cluster17(args.file, POLL_ID, args.population)
     process.process_data()
 
-    # logger.info("")
-    # logger.info("╔═══════════════════════════════════════════════════════════════════════════╗")
-    # logger.info("║ ✅  Fin d’extraction du Cluster 17                                        ║")
-    # logger.info("╚═══════════════════════════════════════════════════════════════════════════╝")
-    # logger.info(f"📄 PDF         : {args.file}")
-    # logger.info(f"📅 Date        : {args.date[:4]}-{args.date[4:]}")
-
-
 if __name__ == "__main__":
     sys.exit(main())

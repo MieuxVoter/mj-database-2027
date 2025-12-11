@@ -6,6 +6,7 @@ from typing import Dict, Any
 from core.settings.logger import setup_logging
 from core.helpers import normalize
 from core.population import Population
+from mining.mining_CLUSTER17.cluster17_anomaly_detector import Cluster17AnomalyDetector
 
 setup_logging()
 logger = logging.getLogger("app")
@@ -36,8 +37,8 @@ class Cluster17CSVBuilder:
             raise TypeError("Le paramètre 'poll_id' doit être une chaîne de caractères.")
         
         if not path.exists():
-            logger.error(f"Le fichier répertoire  est introuvable : {path}")
-            raise FileNotFoundError(f"Le répertoire  spécifié est introuvable : {path}")
+            logger.error(f"Le répertoire est introuvable : {path}")
+            raise FileNotFoundError(f"Le répertoire spécifié est introuvable : {path}")
 
         self.path: Path = path
         self.poll_id: str = poll_id
@@ -67,7 +68,7 @@ class Cluster17CSVBuilder:
         "intention_mention_3", "intention_mention_4"
     }
 
-    def clean_survey_data(self, df: pd.DataFrame) -> pd.DataFrame:
+    def __clean_survey_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Nettoie et normalise les données d'une enquête Cluster17.
 
@@ -105,7 +106,7 @@ class Cluster17CSVBuilder:
 
         return df
     
-    def merge_candidates(self, df: pd.DataFrame, population: Population) -> Dict[str, Any] | None:
+    def __merge_candidates(self, df: pd.DataFrame, population: Population) -> Dict[str, Any] | None:
         """
         Fusionne les données d'enquête avec le fichier de référence des candidats.
 
@@ -165,7 +166,7 @@ class Cluster17CSVBuilder:
             return {"df": df_merged, "missing": nb_missing}
         
         except Exception as e:
-            logger.error(f"Erreur lors de la fusion des candidats : {e}")
+            logger.error(f"Erreur inattendue lors de la fusion des candidats : {e}")
             return None
 
 
@@ -174,7 +175,32 @@ class Cluster17CSVBuilder:
 
 
     def create_csv(self, survey: Dict[str, Any], overwrite: bool = False) -> bool:
+        """
+        Crée le fichier CSV nettoyé et fusionné pour une population donnée du baromètre Cluster17.
 
+        Cette méthode exécute l’ensemble du pipeline pour un tableau extrait :
+        1. Nettoyage et normalisation des données brutes issues du PDF.
+        2. Fusion avec le fichier de référence des candidats (`candidates.csv`).
+        3. Génération du fichier CSV final dans le répertoire de sortie.
+        4. Détection automatique et export des anomalies éventuelles (Cluster17AnomalyDetector). 
+
+        Args
+            survey : Dict[str, Any]
+                Dictionnaire décrivant la population et le contexte d’extraction du sondage.
+                Chaque élément représente un tableau et son contexte textuel associé.
+                    - "Population" : instance de Population ou chaîne identifiant la population.
+                    - "Page" : numéro de page du PDF (int, optionnel).
+                    - "Étiquette de population" : description textuelle du sous-échantillon.
+                    - "df" : DataFrame brut de la table extraite.
+            overwrite : bool, optionnel
+                Si True, écrase le fichier existant.  
+                Si False (par défaut), saute la création si le fichier existe déjà.    
+
+        Returns
+            bool
+                True  → si le fichier CSV a été généré avec succès.  
+                False → si une erreur est survenue à une quelconque étape du processus.                           
+        """
 
         # Construire le chemin de sortie
         filename = f"{self.path.name}_{survey['Population']}.csv"
@@ -186,41 +212,46 @@ class Cluster17CSVBuilder:
             return False
         
         try:
-        
-            df = self.clean_survey_data(survey['df'].copy())
 
-            if df.empty:
-                logger.warning(f"Le tableau pour {survey.get('population', 'Inconnue')} est vide. CSV non créé.")
-                return False
+            try:
+                df = self.__clean_survey_data(survey['df'].copy())
+
+                if df.empty:
+                    logger.warning(f"Le tableau pour {survey.get('population', 'Inconnue')} est vide. CSV non créé.")
+                    return False
+            except Exception as e:
+                logger.error(f"Erreur inattendue lors du nettoyage des données pour {survey.get('Population', 'Inconnue')} : {e}")
+
 
             missing_cols = self.EXPECTED_COLS - set(df.columns)
             if missing_cols:
                 logger.error(f"Colonnes manquantes dans {filename} : {missing_cols}")
                 return False
 
-            result = self.merge_candidates(df, survey['Population'])
+            result = self.__merge_candidates(df, survey['Population'])
             if not result:
                 logger.error(f"Échec de la fusion des candidats pour {survey.get('population', 'Inconnue')}")
                 return False
 
             df = result["df"]
-            nb_missing = result["missing"]
 
-            df.to_csv(output_path, index=False, encoding="utf-8")
+            try:
+                df.to_csv(output_path, index=False, encoding="utf-8")
 
-            logger.info(f"✅ CSV généré : {output_path}")
-            logger.info(f"\t📄 Page: {survey.get('Page', 'N/A')}")
-            logger.info(f"\t📊 {df["candidate_id"].notnull().sum()} candidats trouvés")
-            if nb_missing > 0:
-                logger.warning(
-                    f"\t⚠️  {nb_missing} identifiant(s) de candidat introuvable(s). "
-                    f"Vérifiez le fichier d’anomalies associé à la population « {survey.get('Population', 'Inconnue')} »."
-                )
-            logger.info(f"\t🧠 Population : {survey.get('Étiquette de population', 'Inconnue')}")
-            logger.info(f"\t📋 Type : {self.poll_id}")
+                logger.info(f"✅ CSV généré : {output_path}")
+                logger.info(f"\t📄 Page: {survey.get('Page', 'N/A')}")
+                logger.info(f"\t📊 {df["candidate_id"].notnull().sum()} candidats trouvés")
+                logger.info(f"\t🧠 Population : {survey.get('Étiquette de population', 'Inconnue')}")
+                logger.info(f"\t📋 Type : {self.poll_id}")
+            except Exception as e:
+                logger.error(f"Erreur inattendue lors de l’écriture du fichier CSV {filename} : {e}")
+                return False
 
-                ##### AQUI es doinde tengo que crear la validacion y escribirla por cada archivo para que se escriba
+            # Génération du rapport d’anomalies
+            anomalies = Cluster17AnomalyDetector(df, self.path)
+            anomalies.generate_anomaly_report(survey)
 
+            logger.info("")
             return True
 
         except Exception as e:

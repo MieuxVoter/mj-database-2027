@@ -57,7 +57,7 @@ class Cluster17PDFExtractor:
     ]
 
 
-    def _is_page_relevant(self, page_layout) -> bool:
+    def is_page_relevant(self, page_layout) -> bool:
         """
         Analysez une page PDF pour déterminer si elle contient un tableau correspondant
         à une sondage du Cluster 17.
@@ -117,7 +117,7 @@ class Cluster17PDFExtractor:
         return has_title and has_table_structure and has_numeric_density and has_expected_columns
     
 
-    def _get_tables_population(self, page_number: int) -> List[Dict[str, Any]] | None:
+    def get_tables_population(self, page_number: int) -> List[Dict[str, Any]] | None:
         """
         Extrait d'une page PDF les **tableaux** et les **blocs de texte (légendes ou populations)**
         qui se trouvent immédiatement au-dessus d'eux, en renvoyant les deux éléments dans une structure combinée.
@@ -213,7 +213,7 @@ class Cluster17PDFExtractor:
                     y_prev_bottom = y_bottom 
                     logger.debug("")   
                 except Exception as e:
-                    logger.warning(f"Erreur lors du traitement de la table {idx} page {page_number} : {e}")
+                    logger.warning(f"Erreur inattendue lors du traitement de la table {idx} page {page_number} : {e}")
                     continue
 
         return survey_data
