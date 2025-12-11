@@ -26,7 +26,7 @@ Contains all configuration constants:
 - `BAROMETER_URL`: Political barometer page URL
 - `FLOURISH_VIZ_PATTERN`: Regex pattern for finding visualizations
 - `FLOURISH_EMBED_TEMPLATE`: Template for embed URLs
-- `HEADERS`: HTTP headers for requests
+- `BROWSER_PROFILES`: Browser fingerprints for stealth scraping
 - `MONTH_MAP`: French month name to number mapping
 - `POLITICIAN_INDICATORS`: Names used for candidate detection
 
@@ -56,10 +56,10 @@ Contains all configuration constants:
 
 ### downloader.py
 **Functions:**
-- `download_flourish_visualization(viz_url, session)`: Download visualization HTML
-  - Takes requests.Session for connection reuse
+- `download_flourish_visualization(viz_url, page)`: Download visualization HTML
+  - Takes a Playwright `Page` object
+  - Includes human-like delays
   - Returns HTML string
-  - Raises on HTTP errors
 
 ### candidate_detector.py
 **Functions:**
@@ -81,13 +81,14 @@ Contains all configuration constants:
 ### scraper.py
 **Main Function:**
 - `scrape_ipsos_barometer(output_dir, dry_run, force)`: Main orchestration
-  1. Fetches IPSOS barometer page
-  2. Extracts publication date and generates poll ID
-  3. Checks if poll already exists (--skip-existing by default)
-  4. Identifies all Flourish visualizations
-  5. Downloads only visualization with candidate data
-  6. Extracts survey metadata
-  7. Saves source.html and metadata.txt
+  1. Initializes a stealthy Playwright browser session (persistent context)
+  2. Fetches IPSOS barometer page
+  3. Extracts publication date and generates poll ID
+  4. Checks if poll already exists (--skip-existing by default)
+  5. Identifies all Flourish visualizations
+  6. Downloads only visualization with candidate data
+  7. Extracts survey metadata
+  8. Saves source.html and metadata.txt
   
   Returns dict with:
   - `success`: bool
@@ -136,6 +137,29 @@ python scrape_ipsos_barometer.py --force
 python scrape_ipsos_barometer.py --output-dir /path/to/polls
 ```
 
+## Dependencies
+
+- **playwright**: For browser automation
+- **playwright-stealth**: For evading bot detection
+- **requests**: HTTP requests (legacy/helpers)
+- **beautifulsoup4**: HTML parsing
+- **Python 3.11+**: Modern type hints and features
+
+## Installation
+
+```bash
+pip install -r requirements.txt
+playwright install chromium
+```
+
+## Architecture
+
+The scraper uses **Playwright** with **stealth** plugins to mimic a real user:
+- **Persistent Context**: Uses a local profile (`chrome_profile`) to maintain history and cookies.
+- **Randomized Fingerprint**: Rotates settings like `Viewport`, `User-Agent`.
+- **Locale Mimicry**: Sets French locale and timezone (`Europe/Paris`).
+- **Human Behavior**: Adds random scrolling and delays to avoid patterns.
+
 ## Design Principles
 
 ### Separation of Concerns
@@ -146,85 +170,13 @@ Each module has a single, clear responsibility:
 - Candidate detection is independent of scraping logic
 
 ### Modularity
-Modules can be imported and tested independently:
-
-```python
-from ipsos_scraper.url_extractor import extract_flourish_urls
-from ipsos_scraper.candidate_detector import check_if_candidate_data
-
-# Use just the URL extractor
-html = "<html>...</html>"
-viz_list = extract_flourish_urls(html)
-
-# Use just the candidate detector
-is_candidate_data = check_if_candidate_data(html)
-```
+Modules can be imported and tested independently.
 
 ### Maintainability
 - Clear module names indicate purpose
 - Comprehensive docstrings
 - Type hints for better IDE support
 - Single file to edit for each concern
-
-### Testability
-Each module can be unit tested independently:
-
-```python
-# Test URL extraction
-def test_extract_flourish_urls():
-    html = '<a href="public.flourish.studio/visualisation/12345">viz</a>'
-    result = extract_flourish_urls(html)
-    assert len(result) == 1
-    assert result[0]['id'] == '12345'
-
-# Test candidate detection
-def test_check_if_candidate_data():
-    html = '<script>_Flourish_data = {"data": [["Macron", 0.25]]}</script>'
-    assert check_if_candidate_data(html) == True
-```
-
-## Migration from Monolithic Script
-
-The original `scrape_ipsos_barometer.py` was a single 520-line file with all logic combined. This has been refactored to:
-
-1. **Preserve functionality**: All features work identically
-2. **Same CLI interface**: No changes to command-line usage
-3. **Backward compatible**: Returns same result format
-4. **Better organized**: 7 focused modules vs 1 large file
-
-Old backup: `scrape_ipsos_barometer_old.py` (520 lines)
-New version: `scrape_ipsos_barometer.py` (90 lines) + `ipsos_scraper/` package
-
-## Benefits of Refactoring
-
-### Before (Monolithic)
-- 520 lines in one file
-- Hard to find specific functionality
-- Difficult to test individual components
-- Changes affect entire file
-- High cognitive load
-
-### After (Modular)
-- 7 focused modules (30-180 lines each)
-- Clear organization by responsibility
-- Easy to test individual modules
-- Changes isolated to relevant module
-- Easy to understand each piece
-
-## Dependencies
-
-- **requests**: HTTP requests
-- **beautifulsoup4**: HTML parsing
-- **Python 3.11+**: Modern type hints and features
-
-## Error Handling
-
-Each module handles errors appropriately:
-
-- **url_extractor**: Returns empty list if no visualizations found
-- **date_extractor**: Returns None/empty dict if parsing fails
-- **downloader**: Raises requests.RequestException on HTTP errors
-- **scraper**: Catches all exceptions and returns error dict
 
 ## Future Improvements
 
@@ -234,4 +186,4 @@ Potential enhancements:
 3. Add retry logic for network failures
 4. Support multiple barometer sources
 5. Add data validation module
-6. Create async version for faster downloads
+
