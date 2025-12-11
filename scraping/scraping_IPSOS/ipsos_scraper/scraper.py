@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Optional
 
 from playwright.sync_api import sync_playwright
+
 # The installed playwright-stealth package (v2.0.0) uses a class-based approach
 # instead of the function-based approach shown in some examples.
 from playwright_stealth.stealth import Stealth
@@ -61,12 +62,12 @@ def scrape_ipsos_barometer(output_dir: str = "polls", dry_run: bool = False, for
             # Step 5: Randomize the user-agent
             headers = get_random_headers()
             user_agent = headers.get("User-Agent")
-            
+
             # Step 1 & 3: Use Playwright with persistent context
             # Simulating human-like browser profile
             # We use a local 'chrome_profile' directory for persistence
             user_data_dir = "./chrome_profile"
-            
+
             # Step 6: Override the timezone & locale
             # Using French locale and timezone as we are scraping a French site
             locale = "fr-FR"
@@ -79,7 +80,7 @@ def scrape_ipsos_barometer(output_dir: str = "polls", dry_run: bool = False, for
             # However, for persistent context, methods are on the browser context directly.
             # playwright-stealth v2 hooks into browser.new_context and browser.new_page.
             # launch_persistent_context returns a BrowserContext.
-            
+
             print(f"   Launching Chromium (Persistent Context: {user_data_dir})")
             browser = p.chromium.launch_persistent_context(
                 user_data_dir=user_data_dir,
@@ -90,14 +91,14 @@ def scrape_ipsos_barometer(output_dir: str = "polls", dry_run: bool = False, for
                 viewport={"width": 1280 + random.randint(0, 500), "height": 720 + random.randint(0, 500)},
                 device_scale_factor=random.choice([1, 1.5, 2]),
             )
-            
+
             try:
                 page = browser.pages[0] if browser.pages else browser.new_page()
 
                 # Step 2: Turn on stealth mode (Handled by Stealth().use_sync() wrapper for created pages)
                 # But for persistent context, we might need to manually ensure it if use_sync didn't catch it
                 # because launch_persistent_context is a method on BrowserType.
-                
+
                 # Verified: playwright-stealth v2 patches BrowserType.launch_persistent_context if possible?
                 # The code shows patches for new_context/new_page but launch_persistent_context might be tricky.
                 # However, the user request specifically asked for persistent profile AND stealth.
@@ -113,11 +114,11 @@ def scrape_ipsos_barometer(output_dir: str = "polls", dry_run: bool = False, for
                 page.wait_for_timeout(wait_time)
                 page.mouse.wheel(0, 300)
                 page.wait_for_timeout(600)
-                
+
                 # Additional wait to ensure dynamic content loads (though IPSOS is mostly static for this)
                 # Step 7: Slow down scraping cadence
                 page.wait_for_timeout(1000 + random.randint(0, 1200))
-                
+
                 # Get page content
                 content = page.content()
                 soup = BeautifulSoup(content, "html.parser")
@@ -191,7 +192,7 @@ def scrape_ipsos_barometer(output_dir: str = "polls", dry_run: bool = False, for
 
                 # Check each visualization to find candidate data
                 candidate_viz = None
-                
+
                 if dry_run:
                     print("\n✅ DRY RUN COMPLETE - No files were downloaded")
                     return {

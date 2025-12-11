@@ -8,6 +8,7 @@ from playwright.sync_api import Page
 import time
 import random
 
+
 def download_flourish_visualization(viz_url: str, page: Page) -> str:
     """
     Download the HTML source of a Flourish visualization using Playwright.
