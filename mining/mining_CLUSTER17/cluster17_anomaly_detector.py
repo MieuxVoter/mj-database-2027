@@ -10,6 +10,10 @@ logger = logging.getLogger("app")
 
 
 class Cluster17AnomalyDetector:
+    """
+    Classe de détection et de rapport d’anomalies pour les fichiers CSV du baromètre Cluster17.
+    Vérifie les identifiants manquants et les incohérences dans les totaux d’intention
+    """
 
     def __init__(self, df: pd.DataFrame, path: pathlib.Path) -> None:
         """
