@@ -123,7 +123,7 @@ class Cluster17:
                     for table in survey_data:
 
                         if self.population:
-                            if self.population == table['Population']:
+                            if self.population == table["Population"]:
                                 logger.info(f"• Page {page} : {table['Étiquette de population']}")
                                 surveys.append(table)
                         else:
