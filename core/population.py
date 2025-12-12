@@ -102,13 +102,7 @@ class Population(str, Enum):
                 "macronistes",
                 "electeurs emmanuel macron 2022",
             ],
-            cls.FARRIGHT: [
-                "electeurs de marine le pen et d'eric zemmour",
-                "electeurs de marine le pen",
-                "electeurs d'extreme droite",
-                "rassemblement national",
-                "electeurs de rassemblement national",
-            ],
+            cls.FARRIGHT: ["electeurs de marine le pen et d'eric zemmour", "electeurs d'extreme droite"],
             cls.ABSTENTIONISTS: ["abstentionnistes", "votes blancs et nuls", "non inscrits", "non-inscrits"],
             cls.JLMELENCHON: [
                 "jean-luc melenchon",
@@ -142,7 +136,11 @@ class Population(str, Enum):
             cls.RN: [
                 "electeurs rn aux europeennes 2024",
                 "electeurs rn",
-                "les rn" "rassemblement national europeennes 2024" "rn europeennes 2024",
+                "les rn",
+                "rassemblement national europeennes 2024",
+                "rn europeennes 2024",
+                "rassemblement national",
+                "electeurs de rassemblement national",
             ],
             cls.RECONQUETE: [
                 "electeurs reconquete aux europeennes 2024",

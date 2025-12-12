@@ -54,10 +54,14 @@ def setup_logging(settings=None) -> None:
         },
         "loggers": {
             # Main logger
-            "app": {
+            # "app": {
+            #     "handlers": ["console"],
+            #     "level": LOG_LEVEL.name,
+            #     "propagate": False,
+            # },
+            "root": {  # <-- ahora se configura el logger raíz
                 "handlers": ["console"],
                 "level": LOG_LEVEL.name,
-                "propagate": False,
             },
         },
     }
