@@ -74,7 +74,7 @@ class Cluster17:
         try:
             # Si le niveau de log est DEBUG, tous les fichiers `.csv` et `.txt` existants
             # dans le dossier du PDF sont supprimés avant le traitement.
-            if logger.isEnabledFor(logging.INFO):
+            if logger.isEnabledFor(logging.DEBUG):
                 try:
                     for ext in ("csv", "txt"):
                         [f.unlink() for f in Path(self.file.parent).rglob(f"*.{ext}")]
@@ -111,6 +111,8 @@ class Cluster17:
                 return
 
             logger.info(f"📊  {len(data_pages)} page(s) de données détectée(s) :")
+            if self.population:
+                logger.info("\tSeules les sondages correspondant à la population spécifiée seront prises en compte.")
             logger.info("")
 
             # Obtenir les tableaux et les populations
@@ -119,9 +121,15 @@ class Cluster17:
                 try:
                     survey_data = process_extractor.get_tables_population(page)
                     for table in survey_data:
-                        logger.info(f"• Page {page} : {table['Étiquette de population']}")
 
-                    surveys.extend(survey_data)
+                        if self.population:
+                            if self.population == table['Population']:
+                                logger.info(f"• Page {page} : {table['Étiquette de population']}")
+                                surveys.append(table)
+                        else:
+                            logger.info(f"• Page {page} : {table['Étiquette de population']}")
+                            surveys.append(table)
+
                 except Exception as e:
                     logger.error(f"Erreur inattendue lors de l’extraction des données de la page {page} : {e}")
 

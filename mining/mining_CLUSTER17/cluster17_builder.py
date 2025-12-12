@@ -252,7 +252,6 @@ class Cluster17CSVBuilder:
             anomalies = Cluster17AnomalyDetector(df, self.path)
             anomalies.generate_anomaly_report(survey)
 
-            logger.info("")
             return True
 
         except Exception as e:
