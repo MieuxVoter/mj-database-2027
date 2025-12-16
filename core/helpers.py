@@ -1,6 +1,8 @@
 import argparse
 import unicodedata
 import re
+from pathlib import Path
+import pandas as pd
 
 
 def valid_date(value: str) -> str:
@@ -52,3 +54,43 @@ def normalize(text: str) -> str:
     text = text.replace("\n", " ")
     text = re.sub(r"\s+", " ", text)
     return text.strip()
+
+
+def ensure_newline(path: Path) -> None:
+    """
+    Assurez que le fichier fourni se termine par un caractère de nouvelle ligne.
+
+    Cette fonction est destinée à être utilisée avant d'ajouter des données à un fichier CSV.
+    Si le fichier ne se termine pas par un saut de ligne (``\\n``), celui-ci est ajouté afin d'éviter
+
+    Args:
+        path : Path
+            Chemin d'accès au fichier qui doit se terminer par un caractère de nouvelle ligne.
+    """
+    if not path.exists():
+        raise FileNotFoundError(f"Le fichier est requis mais introuvable : {path}")
+
+    with path.open("rb+") as f:
+        f.seek(-1, 2)
+        last_char = f.read(1)
+        if last_char != b"\n":
+            f.write(b"\n")
+
+
+def survey_exists(
+    csv_path: Path,
+    poll_id: str,
+    population: str,
+) -> bool:
+    """
+    Vérifiez si un sondage existe déjà dans le fichier CSV des sondages.
+
+    Un sondage est considéré comme unique par la paire (poll_id, population).
+    """
+    df = pd.read_csv(
+        csv_path,
+        usecols=["poll_id", "population"],
+        dtype=str,
+    )
+
+    return ((df["poll_id"] == poll_id) & (df["population"] == population)).any()

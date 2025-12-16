@@ -73,3 +73,14 @@ elabe_202512,pt2,1000,2025-12-02,2025-12-03,polls/elabe_202512,macron
 elabe_202512,pt2,1000,2025-12-02,2025-12-03,polls/elabe_202512,absentionists
 elabe_202512,pt2,1000,2025-12-02,2025-12-03,polls/elabe_202512,farright
 ifop_202504,pt3,1002,2024-04-09,2024-04-10,polls/ifop_202504,all
+cluster17_202508,pt4,1752,2025-08-29,2025-09-01,polls/cluster17_202508,all,https://cluster17.com/wp-content/uploads/2025/09/Barometre-questions-actu-Le-Point-Cluster17-Aout25-1.pdf
+cluster17_202508,pt4,1752,2025-08-29,2025-09-01,polls/cluster17_202508,macron,https://cluster17.com/wp-content/uploads/2025/09/Barometre-questions-actu-Le-Point-Cluster17-Aout25-1.pdf
+cluster17_202508,pt4,1752,2025-08-29,2025-09-01,polls/cluster17_202508,lepen,https://cluster17.com/wp-content/uploads/2025/09/Barometre-questions-actu-Le-Point-Cluster17-Aout25-1.pdf
+cluster17_202508,pt4,1752,2025-08-29,2025-09-01,polls/cluster17_202508,melenchon,https://cluster17.com/wp-content/uploads/2025/09/Barometre-questions-actu-Le-Point-Cluster17-Aout25-1.pdf
+cluster17_202508,pt4,1752,2025-08-29,2025-09-01,polls/cluster17_202508,lfi,https://cluster17.com/wp-content/uploads/2025/09/Barometre-questions-actu-Le-Point-Cluster17-Aout25-1.pdf
+cluster17_202508,pt4,1752,2025-08-29,2025-09-01,polls/cluster17_202508,ecologistes,https://cluster17.com/wp-content/uploads/2025/09/Barometre-questions-actu-Le-Point-Cluster17-Aout25-1.pdf
+cluster17_202508,pt4,1752,2025-08-29,2025-09-01,polls/cluster17_202508,pspp,https://cluster17.com/wp-content/uploads/2025/09/Barometre-questions-actu-Le-Point-Cluster17-Aout25-1.pdf
+cluster17_202508,pt4,1752,2025-08-29,2025-09-01,polls/cluster17_202508,renaissance,https://cluster17.com/wp-content/uploads/2025/09/Barometre-questions-actu-Le-Point-Cluster17-Aout25-1.pdf
+cluster17_202508,pt4,1752,2025-08-29,2025-09-01,polls/cluster17_202508,lr,https://cluster17.com/wp-content/uploads/2025/09/Barometre-questions-actu-Le-Point-Cluster17-Aout25-1.pdf
+cluster17_202508,pt4,1752,2025-08-29,2025-09-01,polls/cluster17_202508,rn,https://cluster17.com/wp-content/uploads/2025/09/Barometre-questions-actu-Le-Point-Cluster17-Aout25-1.pdf
+cluster17_202508,pt4,1752,2025-08-29,2025-09-01,polls/cluster17_202508,reconquete,https://cluster17.com/wp-content/uploads/2025/09/Barometre-questions-actu-Le-Point-Cluster17-Aout25-1.pdf

@@ -1,0 +1,5 @@
+poll_id: cluster_202508
+publication_date: 2025-10-22
+page_url: https://cluster17.com/barometre-des-personnalites-le-point-cluster17-septembre-2025-sebastien-lecornu-premier-ministre-et-troisieme-homme/
+pdf_url: https://cluster17.com/wp-content/uploads/2025/10/Barometre-Le-Point-Cluster17-Octobre25-1.pdf
+source_file: source.pdf
