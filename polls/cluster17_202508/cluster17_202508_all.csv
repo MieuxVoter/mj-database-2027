@@ -1,37 +1,37 @@
-personnalite,candidate_id,intention_mention_1,intention_mention_2,intention_mention_3,intention_mention_4
-Jordan Bardella,JB,18,17,50,15
-Marine Le Pen,MLP,16,19,48,17
-Bruno Retailleau,BR,13,19,47,21
-Fabien Roussel,FRo,2,27,36,35
-Dominique De Villepin,DV,4,23,41,32
-Gérald Darmanin,GD,8,18,54,20
-Marion Maréchal,MM,9,16,54,21
-François Ruffin,FR,6,19,34,41
-Edouard Philippe,EP,7,17,55,21
-Raphaël Glucksmann,RG,7,16,48,29
-François Xavier-Bellamy,FXB,6,17,37,40
-Jean-Philippe Tanguy,JPT,9,13,38,40
-David Lisnard,DL,8,14,24,54
-Jean-Luc Mélenchon,JLM,12,9,63,16
-Bernard Cazeneuve,BC,5,16,45,34
-Eric Ciotti,EC,7,13,60,20
-Gabriel Attal,GA,6,14,60,20
-Rachida Dati,RD,4,16,60,20
-Michel Barnier,MBa,3,17,43,37
-Eric Zemmour,EZ,9,10,64,17
-Marine Tondelier,MT,5,14,53,28
-Lucie Castets,LC,6,11,45,38
-Emmanuel Macron,EM,6,11,71,12
-Olivier Faure,OF,3,13,49,35
-Laurent Wauquiez,LW,3,12,62,23
-Yannick Jadot,YJ,2,13,48,37
-Xavier Bertrand,XB,2,13,55,30
-François Hollande,FH,2,13,64,21
-Yaël Braun-Pivet,YBP,4,10,46,40
-Carole Delga,CD,3,11,31,55
-Valérie Pécresse,VP,3,10,61,26
-Sandrine Rousseau,SR,3,10,67,20
-Christian Estrosi,CE,2,11,54,33
-Gérard Larcher,GL,3,9,55,33
-François Bayrou,FB,2,10,66,22
-Anne Hidalgo,AH,2,10,67,21
+personnalite,candidate_id,intention_mention_1,intention_mention_2,intention_mention_3,intention_mention_4,intention_mention_5,intention_mention_6,intention_mention_7,poll_type_id,population
+Jordan Bardella,JB,18,17,50,15,,,,pt4,all
+Marine Le Pen,MLP,16,19,48,17,,,,pt4,all
+Bruno Retailleau,BR,13,19,47,21,,,,pt4,all
+Fabien Roussel,FRo,2,27,36,35,,,,pt4,all
+Dominique De Villepin,DV,4,23,41,32,,,,pt4,all
+Gérald Darmanin,GD,8,18,54,20,,,,pt4,all
+Marion Maréchal,MM,9,16,54,21,,,,pt4,all
+François Ruffin,FR,6,19,34,41,,,,pt4,all
+Edouard Philippe,EP,7,17,55,21,,,,pt4,all
+Raphaël Glucksmann,RG,7,16,48,29,,,,pt4,all
+François Xavier-Bellamy,FXB,6,17,37,40,,,,pt4,all
+Jean-Philippe Tanguy,JPT,9,13,38,40,,,,pt4,all
+David Lisnard,DL,8,14,24,54,,,,pt4,all
+Jean-Luc Mélenchon,JLM,12,9,63,16,,,,pt4,all
+Bernard Cazeneuve,BC,5,16,45,34,,,,pt4,all
+Eric Ciotti,EC,7,13,60,20,,,,pt4,all
+Gabriel Attal,GA,6,14,60,20,,,,pt4,all
+Rachida Dati,RD,4,16,60,20,,,,pt4,all
+Michel Barnier,MBa,3,17,43,37,,,,pt4,all
+Eric Zemmour,EZ,9,10,64,17,,,,pt4,all
+Marine Tondelier,MT,5,14,53,28,,,,pt4,all
+Lucie Castets,LC,6,11,45,38,,,,pt4,all
+Emmanuel Macron,EM,6,11,71,12,,,,pt4,all
+Olivier Faure,OF,3,13,49,35,,,,pt4,all
+Laurent Wauquiez,LW,3,12,62,23,,,,pt4,all
+Yannick Jadot,YJ,2,13,48,37,,,,pt4,all
+Xavier Bertrand,XB,2,13,55,30,,,,pt4,all
+François Hollande,FH,2,13,64,21,,,,pt4,all
+Yaël Braun-Pivet,YBP,4,10,46,40,,,,pt4,all
+Carole Delga,CD,3,11,31,55,,,,pt4,all
+Valérie Pécresse,VP,3,10,61,26,,,,pt4,all
+Sandrine Rousseau,SR,3,10,67,20,,,,pt4,all
+Christian Estrosi,CE,2,11,54,33,,,,pt4,all
+Gérard Larcher,GL,3,9,55,33,,,,pt4,all
+François Bayrou,FB,2,10,66,22,,,,pt4,all
+Anne Hidalgo,AH,2,10,67,21,,,,pt4,all

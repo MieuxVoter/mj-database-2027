@@ -1,11 +1,11 @@
-personnalite,candidate_id,intention_mention_1,intention_mention_2,intention_mention_3,intention_mention_4
-Jordan Bardella,JB,46,42,2,10
-Marine Le Pen,MLP,33,52,3,12
-Eric Ciotti,EC,44,39,2,15
-David Lisnard,DL,32,49,5,14
-Eric Zemmour,EZ,71,6,0,23
-François Xavier-Bellamy,FXB,27,49,8,16
-Marion Maréchal,MM,47,25,9,19
-Bruno Retailleau,BR,37,34,8,21
-Jean-Philippe Tanguy,JPT,30,34,7,29
-Laurent Wauquiez,LW,7,26,30,37
+personnalite,candidate_id,intention_mention_1,intention_mention_2,intention_mention_3,intention_mention_4,intention_mention_5,intention_mention_6,intention_mention_7,poll_type_id,population
+Jordan Bardella,JB,46,42,2,10,,,,pt4,reconquete
+Marine Le Pen,MLP,33,52,3,12,,,,pt4,reconquete
+Eric Ciotti,EC,44,39,2,15,,,,pt4,reconquete
+David Lisnard,DL,32,49,5,14,,,,pt4,reconquete
+Eric Zemmour,EZ,71,6,0,23,,,,pt4,reconquete
+François Xavier-Bellamy,FXB,27,49,8,16,,,,pt4,reconquete
+Marion Maréchal,MM,47,25,9,19,,,,pt4,reconquete
+Bruno Retailleau,BR,37,34,8,21,,,,pt4,reconquete
+Jean-Philippe Tanguy,JPT,30,34,7,29,,,,pt4,reconquete
+Laurent Wauquiez,LW,7,26,30,37,,,,pt4,reconquete

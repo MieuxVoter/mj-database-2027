@@ -225,6 +225,14 @@ class CSVBuilder:
             # Écriture et détails du fichier CSV
             # -----------------------------------------------------------------
             try:
+
+                # Colonnes pour la validation de la structure dans les test
+                df["intention_mention_5"] = ""
+                df["intention_mention_6"] = ""
+                df["intention_mention_7"] = ""
+                df["poll_type_id"] = self.poll_type
+                df["population"] = survey["Population"].value
+
                 df.to_csv(output_path, index=False, encoding="utf-8")
                 self.logger.info(f"✅ CSV généré : {output_path}")
                 self.logger.info(f"\t📄 Page: {survey.get('Page', 'N/A')}")

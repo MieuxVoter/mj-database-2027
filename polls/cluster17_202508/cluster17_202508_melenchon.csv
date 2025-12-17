@@ -1,37 +1,37 @@
-personnalite,candidate_id,intention_mention_1,intention_mention_2,intention_mention_3,intention_mention_4
-Jean-Luc Mélenchon,JLM,53,15,23,9
-Lucie Castets,LC,19,34,9,38
-Marine Tondelier,MT,19,31,17,33
-Sandrine Rousseau,SR,12,38,25,25
-François Ruffin,FR,17,28,11,44
-Olivier Faure,OF,12,28,23,37
-Dominique de Villepin,DV,5,35,27,33
-Fabien Roussel,FRo,6,29,28,37
-Anne Hidalgo,AH,2,20,46,32
-Yannick Jadot,YJ,3,16,41,40
-Raphaël Glucksmann,RG,9,9,57,25
-François Hollande,FH,3,12,64,21
-Carole Delga,CD,3,6,49,42
-Emmanuel Macron,EM,1,5,88,6
-Michel Barnier,MBa,0,6,72,22
-Rachida Dati,RD,0,6,83,11
-David Lisnard,DL,3,2,46,49
-Bernard Cazeneuve,BC,2,3,67,28
-Eric Ciotti,EC,2,3,89,6
-Yaël Braun-Pivet,YBP,1,4,70,25
-Edouard Philippe,EP,0,5,81,14
-Gabriel Attal,GA,1,3,86,10
-Marine Le Pen,MLP,1,3,86,10
-Marion Maréchal,MM,1,3,88,8
-Bruno Retailleau,BR,1,3,89,7
-François Xavier-Bellamy,FXB,0,4,70,26
-Xavier Bertrand,XB,0,3,76,21
-Gérard Larcher,GL,0,3,81,16
-François Bayrou,FB,0,3,87,10
-Jean-Philippe Tanguy,JPT,1,1,70,28
-Jordan Bardella,JB,1,1,90,8
-Valérie Pécresse,VP,0,2,86,12
-Eric Zemmour,EZ,0,2,94,4
-Christian Estrosi,CE,0,1,74,25
-Laurent Wauquiez,LW,0,1,85,14
-Gérald Darmanin,GD,0,1,92,7
+personnalite,candidate_id,intention_mention_1,intention_mention_2,intention_mention_3,intention_mention_4,intention_mention_5,intention_mention_6,intention_mention_7,poll_type_id,population
+Jean-Luc Mélenchon,JLM,53,15,23,9,,,,pt4,melenchon
+Lucie Castets,LC,19,34,9,38,,,,pt4,melenchon
+Marine Tondelier,MT,19,31,17,33,,,,pt4,melenchon
+Sandrine Rousseau,SR,12,38,25,25,,,,pt4,melenchon
+François Ruffin,FR,17,28,11,44,,,,pt4,melenchon
+Olivier Faure,OF,12,28,23,37,,,,pt4,melenchon
+Dominique de Villepin,DV,5,35,27,33,,,,pt4,melenchon
+Fabien Roussel,FRo,6,29,28,37,,,,pt4,melenchon
+Anne Hidalgo,AH,2,20,46,32,,,,pt4,melenchon
+Yannick Jadot,YJ,3,16,41,40,,,,pt4,melenchon
+Raphaël Glucksmann,RG,9,9,57,25,,,,pt4,melenchon
+François Hollande,FH,3,12,64,21,,,,pt4,melenchon
+Carole Delga,CD,3,6,49,42,,,,pt4,melenchon
+Emmanuel Macron,EM,1,5,88,6,,,,pt4,melenchon
+Michel Barnier,MBa,0,6,72,22,,,,pt4,melenchon
+Rachida Dati,RD,0,6,83,11,,,,pt4,melenchon
+David Lisnard,DL,3,2,46,49,,,,pt4,melenchon
+Bernard Cazeneuve,BC,2,3,67,28,,,,pt4,melenchon
+Eric Ciotti,EC,2,3,89,6,,,,pt4,melenchon
+Yaël Braun-Pivet,YBP,1,4,70,25,,,,pt4,melenchon
+Edouard Philippe,EP,0,5,81,14,,,,pt4,melenchon
+Gabriel Attal,GA,1,3,86,10,,,,pt4,melenchon
+Marine Le Pen,MLP,1,3,86,10,,,,pt4,melenchon
+Marion Maréchal,MM,1,3,88,8,,,,pt4,melenchon
+Bruno Retailleau,BR,1,3,89,7,,,,pt4,melenchon
+François Xavier-Bellamy,FXB,0,4,70,26,,,,pt4,melenchon
+Xavier Bertrand,XB,0,3,76,21,,,,pt4,melenchon
+Gérard Larcher,GL,0,3,81,16,,,,pt4,melenchon
+François Bayrou,FB,0,3,87,10,,,,pt4,melenchon
+Jean-Philippe Tanguy,JPT,1,1,70,28,,,,pt4,melenchon
+Jordan Bardella,JB,1,1,90,8,,,,pt4,melenchon
+Valérie Pécresse,VP,0,2,86,12,,,,pt4,melenchon
+Eric Zemmour,EZ,0,2,94,4,,,,pt4,melenchon
+Christian Estrosi,CE,0,1,74,25,,,,pt4,melenchon
+Laurent Wauquiez,LW,0,1,85,14,,,,pt4,melenchon
+Gérald Darmanin,GD,0,1,92,7,,,,pt4,melenchon
