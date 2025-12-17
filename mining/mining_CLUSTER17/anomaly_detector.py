@@ -3,6 +3,7 @@ import pandas as pd
 import pathlib
 from pathlib import Path
 from typing import Dict, Any
+from core.helpers import normalize_to_100
 
 
 class AnomalyDetector:
@@ -52,7 +53,7 @@ class AnomalyDetector:
             self.logger.error(f"Le répertoire est introuvable : {self.path}")
             raise FileNotFoundError(f"Le répertoire spécifié est introuvable : {self.path}")
 
-    def __get_missing_candidates_id(self) -> Dict[str, Any]:
+    def _get_missing_candidates_id(self) -> Dict[str, Any]:
         """
         Détecte les lignes du DataFrame qui ne possèdent pas de valeur valide dans la colonne `candidate_id`.
 
@@ -89,70 +90,78 @@ class AnomalyDetector:
             self.logger.error(f"Erreur inattendue lors de la détection des candidats manquants: {e}")
             return {"count": 0, "names": []}
 
-    def __get_inconsistent_intentions(self) -> Dict[str, Any]:
+    def _get_inconsistent_intentions(self) -> Dict[str, Any]:
         """
         Renvoie les personnalités dont la somme des intentions est différente de 100.
-
-        Args:
-            df (pd.DataFrame): DataFrame avec les colonnes intention_mention_1..4
+        Détecte, normalise et supprime les incohérences dans les intentions de vote.
+        - |diff| > 4  → ligne supprimée
+        - 0 < |diff| ≤ 4 → ligne normalisée
 
         Returns:
             Dict[str, Any]: Un dictionnaire avec les clés suivantes
                 {
-                    "count": int,  # nombre d'incohérences
-                    "rows": List[Dict[str, Any]]  # Liste des dicts avec détails par candidat
+                    "count": int,                   # nombre d'incohérences
+                    "rows": List[Dict[str, Any]]    # Liste des dicts avec détails par candidat
+                    "removed_count": int,           # nombre de lignes supprimées
+                    "normalized_count": int         # nombre de lignes normalisées
                 }
         """
+
         try:
-
             required_columns = self.REQUIRED_COLUMNS_CANDIDATE | self.REQUIRED_COLUMNS_INTENTION
-
             missing_cols = required_columns - set(self.df.columns)
             if missing_cols:
                 raise KeyError(f"Colonnes manquantes dans le DataFrame : {missing_cols}")
 
-            # Convertir en numérique pour des raisons de sécurité
-            self.df[list(self.REQUIRED_COLUMNS_INTENTION)] = self.df[list(self.REQUIRED_COLUMNS_INTENTION)].apply(
-                pd.to_numeric, errors="coerce"
-            )
+            cols = list(self.REQUIRED_COLUMNS_INTENTION)
 
-            # Calculer la somme des intentions
-            self.df["total_intention"] = self.df[list(self.REQUIRED_COLUMNS_INTENTION)].sum(axis=1, skipna=True)
+            # Calculs
+            self.df["total_intention"] = self.df[cols].sum(axis=1)
+            self.df["difference"] = self.df["total_intention"] - 100
 
-            # Filtrer les valeurs où le total est différent de 100
-            mask = self.df["total_intention"] != 100
-            inconsistent = self.df.loc[mask].copy()
+            # Masques
+            mask_inconsistent = self.df["difference"] != 0
+            mask_remove = mask_inconsistent & (self.df["difference"].abs() > 4)
+            mask_normalize = mask_inconsistent & (self.df["difference"].abs() <= 4)
 
-            # Calculer la différence (positive ou négative)
-            inconsistent["difference"] = inconsistent["total_intention"] - 100
+            # Snapshot pour le rapport avant modification
+            rows = self.df.loc[mask_inconsistent].copy()
+            report_rows = rows[list(required_columns) + ["total_intention", "difference"]].to_dict(orient="records")
 
-            # -----------------------------------------------------------------
-            # Supprimer du DataFrame principal les candidats dont la différence > ±4 %
-            # -----------------------------------------------------------------
-            to_remove = inconsistent.loc[inconsistent["difference"].abs() > 4, "candidate_id"].tolist()
+            # Normalisation
+            if mask_normalize.any():
+                idx = self.df.loc[mask_normalize].index
 
-            if to_remove:
-                before_count = len(self.df)
-                self.df = self.df[~self.df["candidate_id"].isin(to_remove)].reset_index(drop=True)
-                removed_count = before_count - len(self.df)
-            else:
-                removed_count = 0
+                normalized_intentions = normalize_to_100(
+                    self.df.loc[idx],
+                    cols,
+                )
 
-            # Colonnes à retourner (données de base + intentions)
-            result_columns = list(required_columns) + ["total_intention", "difference"]
+                self.df.loc[idx, cols] = normalized_intentions
 
-            # Préparez une sortie structurée
-            rows = inconsistent[result_columns].to_dict(orient="records")
+            # Suppression des lignes hors tolérance
+            removed_count = int(mask_remove.sum())
+            self.df = self.df.loc[~mask_remove].reset_index(drop=True)
 
-            return {"count": len(rows), "rows": rows, "removed_count": removed_count}
+            return {
+                "count": len(report_rows),
+                "rows": report_rows,
+                "removed_count": removed_count,
+                "normalized_count": int(mask_normalize.sum()),
+            }
 
         except KeyError as e:
             self.logger.error(f"Erreur : {e}")
             raise
 
-        except Exception as e:
-            self.logger.exception(f"Erreur inattendue lors de la vérification des intentions : {e}")
-            return {"count": 0, "rows": []}
+        except Exception:
+            self.logger.exception("Erreur inattendue lors de la vérification des intentions")
+            return {
+                "count": 0,
+                "rows": [],
+                "removed_count": 0,
+                "normalized_count": 0,
+            }
 
     def _generate_anomaly_report(self, survey: Dict[str, Any]) -> bool:
         """
@@ -198,9 +207,8 @@ class AnomalyDetector:
 
         try:
 
-            candidates_id = self.__get_missing_candidates_id()
-
-            intentions = self.__get_inconsistent_intentions()
+            candidates_id = self._get_missing_candidates_id()
+            intentions = self._get_inconsistent_intentions()
             removed_count = intentions.get("removed_count", 0)
 
             if candidates_id["count"] == 0 and intentions["count"] == 0:
@@ -290,11 +298,13 @@ class AnomalyDetector:
                         )
 
                         if abs(row["difference"]) > 4:
+
                             f.write("ACTION AUTOMATIQUE :\n")
                             f.write(
                                 "\tCe candidat a été supprimé automatiquement du fichier CSV "
                                 "car son écart d’intention dépasse ±4%.\n\n"
                             )
+
                         else:
                             f.write("ACTION REQUISE :\n")
                             f.write("\t1. Ouvrez le fichier PDF de l’enquête correspondante.\n")

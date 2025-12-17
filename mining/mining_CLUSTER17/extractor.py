@@ -297,7 +297,7 @@ class PDFExtractor:
 
                 if re.search(r"\bm[ée]thodologie\b", page_text, flags=re.IGNORECASE):
                     methodology_text = page_text
-                    self.logger.info(f"📄  Page MÉTHODOLOGIE détectée (page {idx})")
+                    self.logger.info(f"📐  Page MÉTHODOLOGIE détectée (page {idx})")
                     break
 
         if not methodology_text:

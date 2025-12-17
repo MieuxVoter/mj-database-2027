@@ -42,6 +42,15 @@ class CSVBuilder:
         "intention_mention_4",
     }
 
+    ORDERED_COLUMNS = [
+        "personnalite",
+        "candidate_id",
+        "intention_mention_1",
+        "intention_mention_2",
+        "intention_mention_3",
+        "intention_mention_4",
+    ]
+
     def __init__(self, path: pathlib.Path, poll_type: str) -> None:
         """
         Initialise le constructeur du générateur CSV.
@@ -141,15 +150,6 @@ class CSVBuilder:
             )
             return None
 
-        ORDERED_COLUMNS = [
-            "personnalite",
-            "candidate_id",
-            "intention_mention_1",
-            "intention_mention_2",
-            "intention_mention_3",
-            "intention_mention_4",
-        ]
-
         df_candidates = pd.read_csv(self.CANDIDATES_CSV)
         df_candidates["name_norm"] = df_candidates["name"].apply(normalize)
         df_candidates["surname_norm"] = df_candidates["surname"].apply(normalize)
@@ -162,7 +162,7 @@ class CSVBuilder:
         df_merged = df.merge(df_candidates[["personnalite_norm", "candidate_id"]], on=["personnalite_norm"], how="left")
 
         df_merged.drop(columns=["personnalite_norm"], inplace=True)
-        df_merged = df_merged[ORDERED_COLUMNS]
+        df_merged = df_merged[self.ORDERED_COLUMNS]
         nb_missing = df_merged["candidate_id"].isnull().sum()
 
         return {"df": df_merged, "missing": nb_missing}
@@ -226,6 +226,19 @@ class CSVBuilder:
             # -----------------------------------------------------------------
             try:
 
+                self.logger.info(f"✅ CSV généré : {output_path}")
+                self.logger.info(f"\t📄 Page: {survey.get('Page', 'N/A')}")
+                self.logger.info(f"\t📊 {df['candidate_id'].notnull().sum()} candidats trouvés")
+                self.logger.info(f"\t🧠 Population : {survey.get('Étiquette de population', 'Inconnue')}")
+                self.logger.info(f"\t📋 Type : {self.poll_type}")
+
+                # -----------------------------------------------------------------
+                # Génération du rapport d’anomalies
+                # -----------------------------------------------------------------
+                anomalies = AnomalyDetector(df, self.path)
+                df = anomalies.analyze(survey)
+                df = df[self.ORDERED_COLUMNS].copy()
+
                 # Colonnes pour la validation de la structure dans les test
                 df["intention_mention_5"] = ""
                 df["intention_mention_6"] = ""
@@ -234,20 +247,10 @@ class CSVBuilder:
                 df["population"] = survey["Population"].value
 
                 df.to_csv(output_path, index=False, encoding="utf-8")
-                self.logger.info(f"✅ CSV généré : {output_path}")
-                self.logger.info(f"\t📄 Page: {survey.get('Page', 'N/A')}")
-                self.logger.info(f"\t📊 {df['candidate_id'].notnull().sum()} candidats trouvés")
-                self.logger.info(f"\t🧠 Population : {survey.get('Étiquette de population', 'Inconnue')}")
-                self.logger.info(f"\t📋 Type : {self.poll_type}")
+
             except PermissionError as e:
                 self.logger.error(f"Permission refusée pour écrire {output_path} : {e}")
                 continue
-
-            # -----------------------------------------------------------------
-            # Génération du rapport d’anomalies
-            # -----------------------------------------------------------------
-            anomalies = AnomalyDetector(df, self.path)
-            df = anomalies.analyze(survey)
 
             # -----------------------------------------------------------------
             # Ajouter sondage dedans polls.csv
