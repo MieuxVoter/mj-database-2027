@@ -96,16 +96,19 @@ def get_random_headers():
 MONTH_MAP = {
     "janvier": 1,
     "février": 2,
+    "fevrier": 2,
     "mars": 3,
     "avril": 4,
     "mai": 5,
     "juin": 6,
     "juillet": 7,
     "août": 8,
+    "aout": 8,
     "septembre": 9,
     "octobre": 10,
     "novembre": 11,
     "décembre": 12,
+    "decembre": 12,
 }
 
 # Politician names for candidate data detection

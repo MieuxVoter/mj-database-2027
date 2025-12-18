@@ -22,6 +22,23 @@ def extract_publication_date(soup: BeautifulSoup) -> Optional[str]:
     Returns:
         Date string in YYYY-MM-DD format, or None if not found
     """
+    # Try to find date in <time datetime="..."> element first (most reliable for IPSOS)
+    # The IPSOS page uses <time datetime="2025-12-13">13.12.25</time>
+    # But some elements may have malformed datetime like "13.12.25", so we look for ISO format
+    time_elements = soup.find_all("time", attrs={"datetime": True})
+    for time_element in time_elements:
+        datetime_attr = str(time_element.get("datetime", ""))
+        # Check if it looks like an ISO date (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS...)
+        if re.match(r"^\d{4}-\d{2}-\d{2}", datetime_attr):
+            try:
+                # Handle both "2025-12-13" and "2025-12-13T16:00:00+01:00" formats
+                if "T" in datetime_attr:
+                    datetime_attr = datetime_attr.split("T")[0]
+                parsed_date = datetime.strptime(datetime_attr, "%Y-%m-%d")
+                return parsed_date.strftime("%Y-%m-%d")
+            except:
+                continue
+
     # Try to find date in meta tags
     date_meta = soup.find("meta", {"property": "article:published_time"})
     if date_meta and date_meta.get("content"):
@@ -35,29 +52,56 @@ def extract_publication_date(soup: BeautifulSoup) -> Optional[str]:
     # Try to find date in the page content
     # Look for common French date patterns
     date_patterns = [
+        # 13 janvier 2025
         r"(\d{1,2})\s+(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s+(\d{4})",
+        # 13/12/2025
         r"(\d{1,2})/(\d{1,2})/(\d{4})",
+        # 13.12.25 or 13.12.2025
+        r"(\d{1,2})\.(\d{1,2})\.(\d{2,4})",
+        # Décembre 2025 (month + year only)
+        r"(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s+(\d{4})",
     ]
 
     text = soup.get_text()
     for pattern in date_patterns:
         match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            if len(match.groups()) == 3 and match.group(2) in MONTH_MAP:
-                day, month_name, year = match.groups()
+        if not match:
+            continue
+
+        groups = match.groups()
+
+        try:
+            # Case 1: "13 janvier 2025"
+            if len(groups) == 3 and groups[1].lower() in MONTH_MAP:
+                day, month_name, year = groups
                 month = MONTH_MAP[month_name.lower()]
-                try:
-                    date_obj = datetime(int(year), month, int(day))
-                    return date_obj.strftime("%Y-%m-%d")
-                except:
-                    pass
-            elif len(match.groups()) == 3:
-                day, month, year = match.groups()
-                try:
-                    date_obj = datetime(int(year), int(month), int(day))
-                    return date_obj.strftime("%Y-%m-%d")
-                except:
-                    pass
+                date_obj = datetime(int(year), month, int(day))
+                return date_obj.strftime("%Y-%m-%d")
+
+            # Case 2: "13/12/2025"
+            if len(groups) == 3 and "/" in pattern:
+                day, month, year = groups
+                date_obj = datetime(int(year), int(month), int(day))
+                return date_obj.strftime("%Y-%m-%d")
+
+            # Case 3: "13.12.25" or "13.12.2025"
+            if len(groups) == 3 and "." in pattern:
+                day, month, year = groups
+                year = int(year)
+                if year < 100:  # 2-digit year → assume 2000+
+                    year += 2000
+                date_obj = datetime(year, int(month), int(day))
+                return date_obj.strftime("%Y-%m-%d")
+
+            # Case 4: "Décembre 2025" (no day → assume 1st of month)
+            if len(groups) == 2:
+                month_name, year = groups
+                month = MONTH_MAP[month_name.lower()]
+                date_obj = datetime(int(year), month, 1)
+                return date_obj.strftime("%Y-%m-%d")
+
+        except Exception:
+            continue
 
     return None
 
