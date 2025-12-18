@@ -1,0 +1,5 @@
+poll_id: cluster_202508
+publication_date: 2025-09-09
+page_url: https://cluster17.com/barometre-des-personnalites-le-point-cluster17-aout-2025-record-dimpopularite-pour-lexecutif/
+pdf_url: https://cluster17.com/wp-content/uploads/2025/09/Barometre-questions-actu-Le-Point-Cluster17-Aout25-1.pdf
+source_file: source.pdf

@@ -47,7 +47,7 @@ def main():
     logger.info(f"👥 Candidats   : {CANDIDATES_CSV}")
     logger.info("")
 
-    pipeline = Cluster17Pipeline(args.file, poll_id="pt4")
+    pipeline = Cluster17Pipeline(args.file, poll_type="pt4")
     pipeline.run()
 
 

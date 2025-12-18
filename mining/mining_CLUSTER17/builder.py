@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 import pandas as pd
 from typing import Dict, Any
-from core.helpers import normalize
+from core.helpers import normalize, ensure_newline, survey_exists
 from mining.mining_CLUSTER17.anomaly_detector import AnomalyDetector
 
 
@@ -13,8 +13,9 @@ class CSVBuilder:
     pour le baromètre Cluster17.
     """
 
-    # Chemin du fichier de référence des candidats
+    # Chemin du fichier de référence des candidats et polls
     CANDIDATES_CSV: Path = Path(__file__).resolve().parent.parent.parent / "candidates.csv"
+    POLLS_CSV: Path = Path(__file__).resolve().parent.parent.parent / "polls.csv"
 
     # Colonnes à conserver
     COLUMNS_KEEP = [
@@ -41,19 +42,28 @@ class CSVBuilder:
         "intention_mention_4",
     }
 
-    def __init__(self, path: pathlib.Path, poll_id: str) -> None:
+    ORDERED_COLUMNS = [
+        "personnalite",
+        "candidate_id",
+        "intention_mention_1",
+        "intention_mention_2",
+        "intention_mention_3",
+        "intention_mention_4",
+    ]
+
+    def __init__(self, path: pathlib.Path, poll_type: str) -> None:
         """
         Initialise le constructeur du générateur CSV.
 
         Args:
             path : Path
                 Répertoire où seront enregistrés les fichiers CSV.
-            poll_id : str
+            poll_type : str
                 Identifiant du sondage (ex. "cluster17_202511").
         """
 
         self.path: Path = path
-        self.poll_id: str = poll_id
+        self.poll_type: str = poll_type
         self.logger = logging.getLogger(self.__class__.__name__)
         self._validate_inputs()
 
@@ -68,9 +78,9 @@ class CSVBuilder:
             self.logger.error(f"Le répertoire est introuvable : {self.path}")
             raise FileNotFoundError(f"Le répertoire spécifié est introuvable : {self.path}")
 
-        if not isinstance(self.poll_id, str):
-            self.logger.error("Le paramètre 'poll_id' doit être une chaîne de caractères.")
-            raise TypeError("Le paramètre 'poll_id' doit être une chaîne de caractères.")
+        if not isinstance(self.poll_type, str):
+            self.logger.error("Le paramètre 'poll_type' doit être une chaîne de caractères.")
+            raise TypeError("Le paramètre 'poll_type' doit être une chaîne de caractères.")
 
     def _clean_survey_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -110,7 +120,7 @@ class CSVBuilder:
 
         return df
 
-    def _merge_candidates(self, df: pd.DataFrame) -> Dict[str, Any] | None:
+    def _merge_candidates(self, df: pd.DataFrame) -> Dict[str, Any]:
         """
         Fusionne les données d'enquête avec le fichier de référence des candidats.
 
@@ -130,23 +140,15 @@ class CSVBuilder:
                 Données nettoyées provenant d'une table du baromètre.
 
         Returns:
-            Dict[str, Any] | None
+            Dict[str, Any]
                 - Si succès : {"df": DataFrame fusionné, "missing": nombre d'identifiants manquants}.
-                 Si erreur ou fichier manquant : None.
         """
 
         if not self.CANDIDATES_CSV.exists():
-            self.logger.error(f"Le fichier << candidates.csv >> est introuvable : {self.CANDIDATES_CSV}")
+            raise FileNotFoundError(
+                f"Le fichier << candidates.csv >> est requis mais introuvable : {self.CANDIDATES_CSV}"
+            )
             return None
-
-        ORDERED_COLUMNS = [
-            "personnalite",
-            "candidate_id",
-            "intention_mention_1",
-            "intention_mention_2",
-            "intention_mention_3",
-            "intention_mention_4",
-        ]
 
         df_candidates = pd.read_csv(self.CANDIDATES_CSV)
         df_candidates["name_norm"] = df_candidates["name"].apply(normalize)
@@ -160,12 +162,12 @@ class CSVBuilder:
         df_merged = df.merge(df_candidates[["personnalite_norm", "candidate_id"]], on=["personnalite_norm"], how="left")
 
         df_merged.drop(columns=["personnalite_norm"], inplace=True)
-        df_merged = df_merged[ORDERED_COLUMNS]
+        df_merged = df_merged[self.ORDERED_COLUMNS]
         nb_missing = df_merged["candidate_id"].isnull().sum()
 
         return {"df": df_merged, "missing": nb_missing}
 
-    def build_all(self, extracted_data) -> int:
+    def build_all(self, survey_metadata, surveys) -> int:
         """
         Crée le fichier CSV nettoyé et fusionné pour une population donnée du baromètre Cluster17.
 
@@ -175,72 +177,110 @@ class CSVBuilder:
         3. Génération du fichier CSV final dans le répertoire de sortie.
         4. Détection automatique et export des anomalies éventuelles (Cluster17AnomalyDetector).
 
+        Args:
+            List[Dict[str, Any]]:
+                Une liste combinée de tous les tableaux extraits.
+
+        Returns:
+            int
+                Nombre des fichiers .csv générés.
         """
 
         nb_csv_created = 0
 
-        for survey in extracted_data:
-            filename = None
-            df = None
+        for survey in surveys:
+
+            # Construire le chemin de sortie
+            filename = f"{self.path.name}_{survey['Population']}.csv"
+            output_path = Path(self.path) / filename
+
+            # -----------------------------------------------------------------
+            # Nettoyage et normalisation des données brutes
+            # -----------------------------------------------------------------
+            df = self._clean_survey_data(survey["df"].copy())
+
+            if df.empty:
+                raise ValueError(
+                    "Le tableau est invalide: DataFrame vide | "
+                    f"population={survey.get('Étiquette de population', 'Inconnue')} | "
+                    f"page={survey.get('Page', 'N/A')}"
+                )
+
+            missing_cols = self.EXPECTED_COLS - set(df.columns)
+            if missing_cols:
+                raise ValueError(
+                    "Le tableau est invalide: colonnes obligatoires manquantes | "
+                    f"colonnes={sorted(missing_cols)} | "
+                    f"population={survey.get('Étiquette de population', 'Inconnue')} | "
+                    f"page={survey.get('Page', 'N/A')}"
+                )
+
+            # -----------------------------------------------------------------
+            # Fusion avec le fichier de référence des candidats
+            # -----------------------------------------------------------------
+            result = self._merge_candidates(df)
+            df = result["df"]
+
+            # -----------------------------------------------------------------
+            # Écriture et détails du fichier CSV
+            # -----------------------------------------------------------------
             try:
 
-                # Construire le chemin de sortie
-                filename = f"{self.path.name}_{survey['Population']}.csv"
-                output_path = Path(self.path) / filename
-
-                # -----------------------------------------------------------------
-                # Nettoyage et normalisation des données brutes
-                # -----------------------------------------------------------------
-                df = self._clean_survey_data(survey["df"].copy())
-
-                if df.empty:
-                    self.logger.warning(
-                        f"Le tableau pour {survey.get('population', 'Inconnue')} est vide. CSV non créé."
-                    )
-                    continue
-
-                missing_cols = self.EXPECTED_COLS - set(df.columns)
-                if missing_cols:
-                    self.logger.error(f"Colonnes manquantes dans {filename} : {missing_cols}")
-                    continue
-
-                # -----------------------------------------------------------------
-                # Fusion avec le fichier de référence des candidats
-                # -----------------------------------------------------------------
-                result = self._merge_candidates(df)
-                if not result:
-                    self.logger.error(f"Échec de la fusion des candidats pour {survey.get('population', 'Inconnue')}")
-                    continue
-
-                df = result["df"]
+                self.logger.info(f"✅ CSV généré : {output_path}")
+                self.logger.info(f"\t📄 Page: {survey.get('Page', 'N/A')}")
+                self.logger.info(f"\t📊 {df['candidate_id'].notnull().sum()} candidats trouvés")
+                self.logger.info(f"\t🧠 Population : {survey.get('Étiquette de population', 'Inconnue')}")
+                self.logger.info(f"\t📋 Type : {self.poll_type}")
 
                 # -----------------------------------------------------------------
                 # Génération du rapport d’anomalies
                 # -----------------------------------------------------------------
                 anomalies = AnomalyDetector(df, self.path)
                 df = anomalies.analyze(survey)
+                df = df[self.ORDERED_COLUMNS].copy()
 
-                # -----------------------------------------------------------------
-                # Écriture et détails du fichier CSV
-                # -----------------------------------------------------------------
-                try:
-                    df.to_csv(output_path, index=False, encoding="utf-8")
+                # Colonnes pour la validation de la structure dans les test
+                df["intention_mention_5"] = ""
+                df["intention_mention_6"] = ""
+                df["intention_mention_7"] = ""
+                df["poll_type_id"] = self.poll_type
+                df["population"] = survey["Population"].value
 
-                    self.logger.info(f"✅ CSV généré : {output_path}")
-                    self.logger.info(f"\t📄 Page: {survey.get('Page', 'N/A')}")
-                    self.logger.info(f"\t📊 {df["candidate_id"].notnull().sum()} candidats trouvés")
-                    self.logger.info(f"\t🧠 Population : {survey.get('Étiquette de population', 'Inconnue')}")
-                    self.logger.info(f"\t📋 Type : {self.poll_id}")
-                except Exception as e:
-                    self.logger.error(f"Erreur inattendue lors de l’écriture du fichier CSV {filename} : {e}")
-                    return False
+                df.to_csv(output_path, index=False, encoding="utf-8")
 
-                nb_csv_created += 1
+            except PermissionError as e:
+                self.logger.error(f"Permission refusée pour écrire {output_path} : {e}")
+                continue
 
-            except Exception as e:
-                self.logger.error(
-                    f"Erreur inattendue lors de la création du CSV pour "
-                    f"{survey.get('Étiquette de population', 'Inconnue')} : {e}"
+            # -----------------------------------------------------------------
+            # Ajouter sondage dedans polls.csv
+            # -----------------------------------------------------------------
+            ensure_newline(self.POLLS_CSV)
+
+            poll_id = self.path.name
+
+            if survey_exists(self.POLLS_CSV, poll_id, survey["Population"].value):
+                self.logger.info(
+                    f"\t♻️  Sondage existe déjà dans << polls.csv >> (poll_id={poll_id}, population={survey['Population'].value}) — passer"
                 )
+            else:
+                new_survey = {
+                    "poll_id": poll_id,
+                    "poll_type": self.poll_type,
+                    "nb_people": survey_metadata["sample_size"],
+                    "start_date": survey_metadata["start_date"],
+                    "end_date": survey_metadata["end_date"],
+                    "folder": str(self.path),
+                    "population": survey["Population"].value,
+                    "pdf_url": survey_metadata["pdf_url"],
+                }
+
+                df_new_survey = pd.DataFrame([new_survey])
+                df_new_survey.to_csv(self.POLLS_CSV, mode="a", header=False, index=False, encoding="utf-8")
+                self.logger.info(
+                    f"\t➕  Sondage ajoutée dans << polls.csv >> (poll_id={poll_id}, population={survey['Population'].value})"
+                )
+
+            nb_csv_created += 1
 
         return nb_csv_created

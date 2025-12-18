@@ -5,6 +5,7 @@ import re
 from typing import List, Dict, Any
 import pdfplumber
 import pandas as pd
+from datetime import date
 from tabulate import tabulate
 from pdfminer.layout import LTTextContainer
 from pdfminer.high_level import extract_pages
@@ -26,6 +27,24 @@ class PDFExtractor:
         r"vous\s+n['’]avez\s+pas\s+d['’]avis\s+sur\s+elle",
         r"vous\s+ne\s+la\s+connaissez\s+pas",
     ]
+
+    MONTHS_FR = {
+        "janvier": "01",
+        "février": "02",
+        "fevrier": "02",
+        "mars": "03",
+        "avril": "04",
+        "mai": "05",
+        "juin": "06",
+        "juillet": "07",
+        "août": "08",
+        "aout": "08",
+        "septembre": "09",
+        "octobre": "10",
+        "novembre": "11",
+        "décembre": "12",
+        "decembre": "12",
+    }
 
     def __init__(self, pdf_path: pathlib.Path) -> None:
         """
@@ -91,7 +110,7 @@ class PDFExtractor:
         # Règles d’identification
         # -----------------------------------------------------------------
         # Détectant le titre
-        has_title = "barometre des personnalites" in normalized_text
+        has_title = bool(re.search(r"\bbarometre\b.*\bpersonnalites\b", normalized_text))
         # Densité totale des lignes
         total_lines = sum(b["line_count"] for b in text_blocks)
         # Blocs (petites tables)
@@ -117,10 +136,8 @@ class PDFExtractor:
                 Il doit être compris entre 1 et le nombre total de pages du PDF.
 
         Returns:
-            List[Dict[str, Any]] | None
+            List[Dict[str, Any]]
                     Une liste de dictionnaires, où chaque élément représente un tableau et son contexte textuel associé.
-
-            Si aucun tableau n'est détecté sur la page, renvoie `None`.
         """
 
         self.logger.debug("")
@@ -134,10 +151,7 @@ class PDFExtractor:
             total_pages = len(pdf.pages)
 
             if page_number < 1 or page_number > len(pdf.pages):
-                logging.error(
-                    f"Numéro de page invalide: {page_number}. " f"Le PDF ne comporte que {total_pages} pages."
-                )
-                raise ValueError(f"Le PDF ne comporte que {total_pages} pages.")
+                raise ValueError(f"Numéro de page invalide: {page_number} / {total_pages}. ")
 
             page = pdf.pages[page_number - 1]
 
@@ -207,65 +221,218 @@ class PDFExtractor:
 
                     y_prev_bottom = y_bottom
                     self.logger.debug("")
-                except Exception as e:
-                    self.logger.warning(
-                        f"Erreur inattendue lors du traitement de la table {idx} page {page_number} : {e}"
-                    )
-                    continue
+                except (KeyError, IndexError, ValueError) as e:
+                    self.logger.warning(f"Table ignorée | page={page_number} | table={idx} | reason={e}")
 
         return survey_data
 
-    def extract_all(self) -> List[Dict[str, Any]]:
+    def _read_metadata_txt(self) -> Dict[str, str]:
+        """
+        Lire un fichier metadata.txt formaté sous forme de paires « clé : valeur ».
+
+        Args:
+            path : Path
+                Chemin d'accès au fichier metadata.txt.
+
+        Returns:
+            Dict[str, str]
+                Dictionnaire contenant des clés et des valeurs de métadonnées.
+
+        """
+        metadata_path = self.pdf_path.parent / "metadata.txt"
+
+        if not metadata_path.exists():
+            raise FileNotFoundError(f"Metadata file not found: {metadata_path}")
+
+        metadata: Dict[str, str] = {}
+
+        with metadata_path.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+
+                if ":" not in line:
+                    raise ValueError(f"Malformed metadata line: {line}")
+
+                key, value = line.split(":", 1)
+                metadata[key.strip()] = value.strip()
+
+        return metadata
+
+    def _extract_methodology_metadata(self, end_page: int = 5) -> Dict[str, Any]:
+        """
+        Extrait les métadonnées méthodologiques clés à partir de la section
+        « MÉTHODOLOGIE » d’un PDF Cluster17.
+
+        Cette méthode parcourt les premières pages du document afin de localiser
+        la page contenant le titre « MÉTHODOLOGIE », puis en extrait les informations
+        suivantes :
+        - la taille de l’échantillon (nombre de personnes interrogées),
+        - les dates de réalisation des interviews (format ISO YYYY-MM-DD).
+
+        Args:
+            end_page (int, optional):
+                Nombre maximum de pages à analyser depuis le début du PDF.
+                Par défaut à 5, ce qui couvre généralement la section méthodologique.
+
+        Returns:
+            Dict[str, Any]:
+                Dictionnaire contenant les métadonnées extraites :
+                {
+                    "sample_size": int,        # Taille de l’échantillon
+                    "start_date": str,         # Date de début des interviews (YYYY-MM-DD)
+                    "end_date": str,           # Date de fin des interviews (YYYY-MM-DD)
+                }
+        """
+
+        methodology_text = ""
+
+        # Trouver la page "MÉTHODOLOGIE"
+        with pdfplumber.open(self.pdf_path) as pdf:
+            for idx, page in enumerate(pdf.pages[:end_page], start=1):
+                page_text = page.extract_text()
+                if not page_text:
+                    continue
+
+                if re.search(r"\bm[ée]thodologie\b", page_text, flags=re.IGNORECASE):
+                    methodology_text = page_text
+                    self.logger.info(f"📐  Page MÉTHODOLOGIE détectée (page {idx})")
+                    break
+
+        if not methodology_text:
+            raise ValueError("Page MÉTHODOLOGIE introuvable dans le PDF")
+
+        # -------------------------
+        # Taille de l’échantillon
+        # -------------------------
+        sample_match = re.search(
+            r"[ée]chantillon\s+(?:de|:)\s*([\d\s]+)\s+personnes", methodology_text, flags=re.IGNORECASE
+        )
+        if not sample_match:
+            raise ValueError("Impossible d’extraire la taille de l’échantillon")
+
+        sample_size = int(sample_match.group(1).replace(" ", ""))
+        self.logger.debug(f"sample_size: {sample_size}")
+
+        # -------------------------
+        # Dates d’interviews
+        # -------------------------
+        RE_ONE_MONTH = re.compile(
+            r"Interviews réalisées du\s+(\d{1,2})\s+au\s+(\d{1,2})\s+" r"([a-zàâäéèêëîïôöùûüç]+)\s+(\d{4})",
+            flags=re.IGNORECASE,
+        )
+
+        RE_TWO_MONTHS = re.compile(
+            r"Interviews réalisées du\s+(\d{1,2})\s+"
+            r"([a-zàâäéèêëîïôöùûüç]+)\s+au\s+"
+            r"(\d{1,2})(?:er)?\s+"
+            r"([a-zàâäéèêëîïôöùûüç]+)\s+(\d{2,4})",
+            flags=re.IGNORECASE,
+        )
+
+        # Cas A : un seul mois (ex: octobre 2025)
+        m = RE_ONE_MONTH.search(methodology_text)
+        if m:
+            d1, d2, month, year = m.groups()
+
+            month_norm = month.lower()
+            if month_norm not in self.MONTHS_FR:
+                raise ValueError(f"Mois non reconnu : {month}")
+
+            y = int(year)
+            m_num = int(self.MONTHS_FR[month_norm])
+
+            start_date = date(y, m_num, int(d1)).isoformat()
+            end_date = date(y, m_num, int(d2)).isoformat()
+
+        # Cas B : deux mois (ex: août → septembre 25)
+        else:
+            m = RE_TWO_MONTHS.search(methodology_text)
+            if not m:
+                raise ValueError("Impossible d’extraire les dates d’interviews")
+
+            d1, m1, d2, m2, year = m.groups()
+
+            m1 = m1.lower()
+            m2 = m2.lower()
+
+            if m1 not in self.MONTHS_FR or m2 not in self.MONTHS_FR:
+                raise ValueError(f"Mois non reconnu : {m1}, {m2}")
+
+            y = int(year) if len(year) == 4 else int(f"20{year}")
+
+            start_date = date(y, int(self.MONTHS_FR[m1]), int(d1)).isoformat()
+            end_date = date(y, int(self.MONTHS_FR[m2]), int(d2)).isoformat()
+
+        self.logger.debug(f"start_date: {start_date} | end_date: {end_date}")
+        self.logger.debug("")
+
+        # -------------------------
+        # Lecture de l'URL du pdf à partir de metadata.txt
+        # -------------------------
+        metadata_txt = self._read_metadata_txt()
+        pdf_url = metadata_txt.get("pdf_url")
+        if not pdf_url:
+            raise ValueError("pdf_url introuvable dans metadata.txt")
+
+        self.logger.debug(f"pdf_url: {pdf_url}")
+
+        return {"sample_size": sample_size, "start_date": start_date, "end_date": end_date, "pdf_url": pdf_url}
+
+    def extract_all(self) -> tuple[Dict[str, Any], List[Dict[str, Any]]]:
         """
         Exécute l'extraction complète du fichier PDF :
         - Détection des pages pertinentes
         - Extraction des tableaux et populations associées
 
         Returns:
-            Une liste combinée de tous les tableaux extraits.
-        """
+            Dict[str, Any]:
+                Dictionnaire contenant les métadonnées :
+                {
+                    "sample_size": int,        # Taille de l’échantillon
+                    "start_date": str,         # Date de début des interviews (YYYY-MM-DD)
+                    "end_date": str,           # Date de fin des interviews (YYYY-MM-DD)
+                }
 
-        try:
-            pages = list(extract_pages(str(self.pdf_path)))
-            total_pages = len(pages)
-        except Exception as e:
-            self.logger.error(f"Erreur inattendue lors de la lecture du fichier PDF : {e}")
-            return []
+            List[Dict[str, Any]]
+                    Une liste de dictionnaires, où chaque élément représente un tableau et son contexte textuel associé.
+        """
+        # -----------------------------------------------------------------
+        # Extraction des métadonnées de l'enquête
+        # -----------------------------------------------------------------
+        survey_metadata = self._extract_methodology_metadata()
 
         # -----------------------------------------------------------------
         # Détection des pages pertinentes contenant des sondages
         # -----------------------------------------------------------------
+        pages = list(extract_pages(str(self.pdf_path)))
+        total_pages = len(pages)
         data_pages: List[int] = []
+
         for page_num in range(1, total_pages + 1):
-            try:
-                page_layout = pages[page_num - 1]
-                if self._is_page_relevant(page_layout):
-                    data_pages.append(page_num)
-            except Exception as e:
-                self.logger.error(f"Erreur inattendue lors de l’analyse de la page {page_num} : {e}")
+            page_layout = pages[page_num - 1]
+            if self._is_page_relevant(page_layout):
+                data_pages.append(page_num)
 
         if not data_pages:
             self.logger.warning("Aucune page pertinente détectée dans ce PDF")
             return []
 
         self.logger.info(f"📊  {len(data_pages)} page(s) de données détectée(s) :")
-        self.logger.info("")
 
         # -----------------------------------------------------------------
         # Obtenir les tableaux et les populations
         # -----------------------------------------------------------------
         surveys: List[Dict[str, Any]] = []
         for page_number in data_pages:
-            try:
-                survey_data = self._get_tables_population(page_number)
-                for table in survey_data:
-                    self.logger.info(f" • Page {page_number} : {table['Étiquette de population']}")
-                surveys.extend(survey_data)
-            except Exception as e:
-                self.logger.error(f"Erreur inattendue lors de l’extraction des données de la page {page} : {e}")
+            survey_data = self._get_tables_population(page_number)
+            for table in survey_data:
+                self.logger.info(f"  • Page {page_number} : {table['Étiquette de population']}")
+            surveys.extend(survey_data)
 
         if not surveys:
             self.logger.warning("Aucune table extraite du PDF")
             return []
 
-        return surveys
+        return survey_metadata, surveys

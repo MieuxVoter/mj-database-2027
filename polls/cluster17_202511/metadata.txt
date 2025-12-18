@@ -1,0 +1,5 @@
+poll_id: cluster_202511
+publication_date: 2025-12-03
+page_url: https://cluster17.com/barometre-des-personnalites-le-point-cluster17-novembre-2025-jordan-bardella-et-marine-le-pen-sans-concurrence/
+pdf_url: https://cluster17.com/wp-content/uploads/2025/12/Barometre-Le-Point-Cluster17-Novembre25.pdf
+source_file: source.pdf
