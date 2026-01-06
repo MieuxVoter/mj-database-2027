@@ -12,7 +12,7 @@ class AnomalyDetector:
     Vérifie les identifiants manquants et les incohérences dans les totaux d’intention
     """
 
-    REQUIRED_COLUMNS_CANDIDATE = {"candidate_id", "personnalite"}
+    REQUIRED_COLUMNS_CANDIDATE = {"candidate_id", "candidate"}
 
     REQUIRED_COLUMNS_INTENTION = {
         "intention_mention_1",
@@ -64,7 +64,7 @@ class AnomalyDetector:
             Dict[str, Any]: Un dictionnaire avec les clés suivantes
                 {
                     "count": int,  # Nombre total de lignes sans `candidate_id`.
-                    "rows": (`List[str]`): Liste contenant les noms des personnalités concernées.
+                    "rows": (`List[str]`): Liste contenant les noms des candidats concernées.
                 }
         """
 
@@ -77,8 +77,8 @@ class AnomalyDetector:
             # Détecter les valeurs nulles ou vides dans candidate_id
             mask_missing = self.df["candidate_id"].isna() | (self.df["candidate_id"].astype(str).str.strip() == "")
 
-            # Extraire les noms des personnalités dont l'identifiant de candidat est manquant
-            missing_rows = self.df.loc[mask_missing, "personnalite"].dropna().tolist()
+            # Extraire les noms des candidats dont l'identifiant de candidat est manquant
+            missing_rows = self.df.loc[mask_missing, "candidate"].dropna().tolist()
 
             return {"count": len(missing_rows), "names": missing_rows}
 
@@ -92,7 +92,7 @@ class AnomalyDetector:
 
     def _get_inconsistent_intentions(self) -> Dict[str, Any]:
         """
-        Renvoie les personnalités dont la somme des intentions est différente de 100.
+        Renvoie les candidats dont la somme des intentions est différente de 100.
         Détecte, normalise et supprime les incohérences dans les intentions de vote.
         - |diff| > 4  → ligne supprimée
         - 0 < |diff| ≤ 4 → ligne normalisée
@@ -271,7 +271,7 @@ class AnomalyDetector:
                         f.write(f"ANOMALIE #{count_total}\n")
                         f.write("-" * 80 + "\n\n")
                         f.write(f"Page:\t\t\t\t{survey.get("Page")}\n")
-                        f.write(f"Candidat:\t\t\t{row['personnalite']}\n")
+                        f.write(f"Candidat:\t\t\t{row['candidate']}\n")
                         f.write(f"Population:\t\t\t{survey.get("Population")}\n\n")
 
                         # --- Scores / Détails ---
@@ -309,7 +309,7 @@ class AnomalyDetector:
                             f.write("ACTION REQUISE :\n")
                             f.write("\t1. Ouvrez le fichier PDF de l’enquête correspondante.\n")
                             f.write(
-                                f"\t2. Recherchez la ligne du candidat « {row['personnalite']} » et vérifiez les pourcentages affichés.\n"
+                                f"\t2. Recherchez la ligne du candidat « {row['candidate']} » et vérifiez les pourcentages affichés.\n"
                             )
                             f.write(
                                 "\t3. Si une erreur est détectée, corrigez manuellement les valeurs\n"
@@ -331,7 +331,7 @@ class AnomalyDetector:
 
                 if candidates_id["count"] > 0:
                     self.logger.warning(
-                        f"\t   ⚠️  {candidates_id["count"]} identifiant(s) de candidat introuvable(s). "
+                        f"\t   ⚠️  {candidates_id["count"]} identifiant(s) de candidat(s) introuvable(s). "
                         f"Vérifiez le fichier d’anomalies associé à la population « {survey.get("Population")} »."
                     )
 

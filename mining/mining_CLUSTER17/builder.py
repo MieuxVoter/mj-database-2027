@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 import pandas as pd
 from typing import Dict, Any
-from core.helpers import normalize, ensure_newline, survey_exists
+from core.helpers import normalize, survey_exists
 from mining.mining_CLUSTER17.anomaly_detector import AnomalyDetector
 
 
@@ -28,6 +28,7 @@ class CSVBuilder:
 
     # Mappage des nouveaux noms de colonnes
     RENAME_COLUMNS = {
+        "personnalite": "candidate",
         "vous la soutenez": "intention_mention_1",
         "vous l'appreciez": "intention_mention_2",
         "vous ne l'appreciez pas": "intention_mention_3",
@@ -35,7 +36,7 @@ class CSVBuilder:
     }
 
     EXPECTED_COLS = {
-        "personnalite",
+        "candidate",
         "intention_mention_1",
         "intention_mention_2",
         "intention_mention_3",
@@ -43,7 +44,7 @@ class CSVBuilder:
     }
 
     ORDERED_COLUMNS = [
-        "personnalite",
+        "candidate",
         "candidate_id",
         "intention_mention_1",
         "intention_mention_2",
@@ -107,7 +108,7 @@ class CSVBuilder:
         df = df.rename(columns=self.RENAME_COLUMNS)
 
         for col in df.columns:
-            if col != "personnalite":
+            if col != "candidate":
                 df[col] = (
                     df[col]
                     .astype(str)
@@ -153,15 +154,15 @@ class CSVBuilder:
         df_candidates = pd.read_csv(self.CANDIDATES_CSV)
         df_candidates["name_norm"] = df_candidates["name"].apply(normalize)
         df_candidates["surname_norm"] = df_candidates["surname"].apply(normalize)
-        df_candidates["personnalite_norm"] = (
+        df_candidates["candidate_norm"] = (
             df_candidates["name_norm"].str.cat(df_candidates["surname_norm"], sep=" ").str.strip()
         )
 
-        df["personnalite_norm"] = df["personnalite"].apply(normalize)
+        df["candidate_norm"] = df["candidate"].apply(normalize)
 
-        df_merged = df.merge(df_candidates[["personnalite_norm", "candidate_id"]], on=["personnalite_norm"], how="left")
+        df_merged = df.merge(df_candidates[["candidate_norm", "candidate_id"]], on=["candidate_norm"], how="left")
 
-        df_merged.drop(columns=["personnalite_norm"], inplace=True)
+        df_merged.drop(columns=["candidate_norm"], inplace=True)
         df_merged = df_merged[self.ORDERED_COLUMNS]
         nb_missing = df_merged["candidate_id"].isnull().sum()
 
@@ -178,8 +179,15 @@ class CSVBuilder:
         4. Détection automatique et export des anomalies éventuelles (Cluster17AnomalyDetector).
 
         Args:
-            List[Dict[str, Any]]:
-                Une liste combinée de tous les tableaux extraits.
+        survey_metadata : Dict[str, Any]
+            Dictionnaire contenant les métadonnées extraites :
+            {
+                "sample_size": int,        # Taille de l’échantillon
+                "start_date": str,         # Date de début des interviews (YYYY-MM-DD)
+                "end_date": str,           # Date de fin des interviews (YYYY-MM-DD)
+            }
+        surveys : List[Dict[str, Any]]:
+            Une liste combinée de tous les tableaux extraits.
 
         Returns:
             int
@@ -255,8 +263,6 @@ class CSVBuilder:
             # -----------------------------------------------------------------
             # Ajouter sondage dedans polls.csv
             # -----------------------------------------------------------------
-            ensure_newline(self.POLLS_CSV)
-
             poll_id = self.path.name
 
             if survey_exists(self.POLLS_CSV, poll_id, survey["Population"].value):
