@@ -1,0 +1,5 @@
+poll_id: elabe_202601
+publication_date: 2026-01-08
+page_url: https://elabe.fr/lobservatoire-politique-janvier-2026/
+pdf_url: https://elabe.fr/wp-content/uploads/2026/01/20260108_les_echos_observatoire-politique.pdf
+source_file: source.pdf
