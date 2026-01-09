@@ -1,6 +1,9 @@
 import argparse
 import unicodedata
 import re
+from pathlib import Path
+import pandas as pd
+import numpy as np
 
 
 def valid_date(value: str) -> str:
@@ -52,3 +55,63 @@ def normalize(text: str) -> str:
     text = text.replace("\n", " ")
     text = re.sub(r"\s+", " ", text)
     return text.strip()
+
+
+def survey_exists(csv_path: Path, poll_id: str, population: str) -> bool:
+    """
+    Vérifiez si un sondage existe déjà dans le fichier CSV des sondages.
+
+    Un sondage est considéré comme unique par la paire (poll_id, population).
+    """
+    df = pd.read_csv(
+        csv_path,
+        usecols=["poll_id", "population"],
+        dtype=str,
+    )
+
+    return ((df["poll_id"] == poll_id) & (df["population"] == population)).any()
+
+
+def normalize_to_100(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
+    """
+    Normalise proportionnellement les colonnes données pour que leur somme
+    soit exactement 100, avec redistribution du résidu selon la méthode
+    des plus grands restes (Hamilton).
+
+    Hypothèses:
+    - Les valeurs sont numériques et >= 0.
+    - La somme initiale est strictement positive.
+
+    Returns:
+        pd.DataFrame: copie normalisée des colonnes fournies (valeurs entières).
+    """
+    values = df[columns].astype(float)
+
+    totals = values.sum(axis=1)
+    if (totals <= 0).any():
+        raise ValueError("Impossible de normaliser des lignes dont la somme <= 0")
+
+    # Normalisation proportionnelle
+    normalized = values.div(totals, axis=0).mul(100)
+
+    # Partie entière
+    floored = normalized.astype(int)
+    # Parties décimales
+    decimals = normalized - floored
+
+    # Résidu à redistribuer
+    residual = 100 - floored.sum(axis=1)
+
+    # Redistribution (plus grands restes)
+    for i in residual.index:
+        if residual.loc[i] <= 0:
+            continue
+
+        ordered_cols = decimals.loc[i].sort_values(ascending=False).index
+        for col in ordered_cols:
+            if residual.loc[i] == 0:
+                break
+            floored.loc[i, col] += 1
+            residual.loc[i] -= 1
+
+    return floored
