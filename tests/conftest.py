@@ -53,6 +53,7 @@ EXPECTED_COLUMNS_DIC = {
         "retrait_candidature",
         "second_round",
         "candidate",
+        "pdf_url",
     ],
     "restricted": [
         "candidate_id",

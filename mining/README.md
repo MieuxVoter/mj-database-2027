@@ -47,10 +47,11 @@ class BasePipeline(ABC):
 | Étape | Description                                   | Méthode correspondante      |
 | ----- | --------------------------------------------- | --------------------------- |
 | 1     | Validation du fichier PDF et de l’identifiant | `_validate_inputs()`        |
-| 2     | Suppression des anciens fichiers CSV/TXT      | `_cleanup_existing_files()` |
-| 3     | Extraction des données brutes                 | `extract()` *(abstraite)*   |
-| 4     | Construction des artefacts finaux             | `build()` *(abstraite)*     |
-| 5     | Journalisation du résultat global             | `run()`                     |
+| 2     | Valide du fichier metadata.txt.               | `_validate_metadata()`      |
+| 3     | Suppression des anciens fichiers CSV/TXT      | `_cleanup_existing_files()` |
+| 4     | Extraction des données brutes                 | `extract()` *(abstraite)*   |
+| 5     | Construction des artefacts finaux             | `build()` *(abstraite)*     |
+| 6     | Journalisation du résultat global             | `run()`                     |
 
 ---
 
@@ -86,10 +87,11 @@ if __name__ == "__main__":
 **Sortie attendue :**
 
 ```
+📄 Validation du fichier << metadata.txt >>..
 🧹 Nettoyage des anciens fichiers avant traitement...
-🔍  Détection et extraction des pages de données...
-📦  Extraction et construction des CSV...
-✅  1 fichier(s) CSV généré(s)
+🔍 Détection et extraction des pages de données...
+📦 Extraction et construction des CSV...
+✅ 1 fichier(s) CSV généré(s)
 ```
 
 ---
@@ -104,6 +106,12 @@ Initialise le pipeline et valide les entrées :
 * `poll_id` : identifiant du sondage (ex. `"cluster17_202511"`)
 
 ---
+
+### `_validate_metadata()`  
+
+Vérifie :
+* que `metadata.txt` est un `Path` existant,
+* que `metadata.txt` a une structure minimale,
 
 ### `_validate_inputs()`
 

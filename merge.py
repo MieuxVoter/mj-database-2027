@@ -26,10 +26,18 @@ def add_poll_type_metadata(poll_df, poll_type):
 
 
 def merge_candidate_metadata(poll_df, candidates):
+
+    candidates = candidates.copy()
+
     # create a new column with the name and surname of the candidate
     candidates["candidate"] = candidates["name"] + " " + candidates["surname"]
+
     #  keep only the candidate_id in the poll_df
     candidates = candidates[candidates["candidate_id"].isin(poll_df["candidate_id"].unique())]
+
+    # If poll_df already has 'candidate', drop it to avoid candidate_x/candidate_y
+    poll_df = poll_df.drop(columns=["candidate"], errors="ignore")
+
     return poll_df.merge(candidates, on="candidate_id", how="right")
 
 
