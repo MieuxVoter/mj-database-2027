@@ -119,11 +119,30 @@ jobs:
             echo "files_created=false" >> $GITHUB_OUTPUT
           fi
       
+      - name: Extract poll data
+        if: steps.scrape.outputs.files_created == 'true'
+        id: extract
+        run: |
+          POLL_PATH="${{ steps.scrape.outputs.poll_path }}"
+          SOURCE_HTML="$POLL_PATH/source.html"
+          
+          echo "Runing extraction on $SOURCE_HTML"
+          
+          if python3 mining/mining_IPSOS/extract_ipsos_from_html.py "$SOURCE_HTML"; then
+            echo "extraction_success=true" >> $GITHUB_OUTPUT
+            echo "✅ Extraction successful"
+          else
+            echo "extraction_success=false" >> $GITHUB_OUTPUT
+            echo "❌ Extraction failed"
+            # We don't fail the workflow here, we just won't include extraction results
+          fi
+      
       - name: Check for changes
         if: steps.check_existing.outputs.poll_exists == 'false' && steps.scrape.outputs.scrape_success == 'true'
         id: check_changes
         run: |
           git add polls/
+          git add polls.csv
           
           # Check if there are any changes to commit
           if git diff --cached --quiet; then
@@ -164,13 +183,15 @@ jobs:
             ### Files Added
             - `${{ steps.scrape.outputs.poll_path }}/source.html` - Flourish visualization data
             - `${{ steps.scrape.outputs.poll_path }}/metadata.txt` - Survey metadata (dates, sample size, population)
+            - `${{ steps.scrape.outputs.poll_path }}/*.csv` - Candidate voting intentions
+            
+            ### Automation Details
+            - **Extraction Status**: ${{ steps.extract.outputs.extraction_success }}
+            - **Database Update**: `polls.csv` updated automatically
             
             ### Next Steps
-            When this PR is merged, the extraction workflow will automatically:
-            1. Extract candidate data from the HTML
-            2. Create CSV file with voting intentions
-            3. Update polls.csv database
-            4. Run validation checks
+            1. Review extracted CSV files and polls.csv
+            2. Run validation checks
             
             ---
             
