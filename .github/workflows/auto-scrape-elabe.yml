@@ -157,7 +157,7 @@ jobs:
             Manual data extraction from PDF will be required:
             1. Extract candidate voting intentions from PDF
             2. Create CSV files (all, left, macron, farright, absentionists)
-            3. Update polls.csv database
+            3. Update polls.csv database (Automated)
             4. Run validation checks
             
             ---

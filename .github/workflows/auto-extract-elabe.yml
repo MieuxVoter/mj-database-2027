@@ -170,6 +170,23 @@ jobs:
         if: steps.detect.outputs.has_elabe == 'true'
         run: |
           pip install pdfminer.six
+
+      - name: Update polls database
+        if: steps.detect.outputs.has_elabe == 'true'
+        run: |
+          echo "Updating polls.csv with new metadata..."
+          
+          # Iterate over detecting polls
+          while IFS= read -r pdf_file; do
+             if [ -z "$pdf_file" ]; then continue; fi
+              
+             POLL_ID=$(echo "$pdf_file" | sed -E 's|polls/([^/]+)/.*|\1|')
+             PDF_PATH="$pdf_file"
+              
+             echo "Processing metadata for $POLL_ID from $PDF_PATH"
+             python3 mining/mining_ELABE/extract_poll_metadata.py "$PDF_PATH" --update-csv polls.csv --poll-id "$POLL_ID"
+            
+          done < /tmp/elabe_to_extract.txt
       
       - name: Extract ELABE polls
         if: steps.detect.outputs.has_elabe == 'true'
@@ -269,6 +286,7 @@ jobs:
           # Stage all new CSV files and anomaly reports
           git add polls/elabe_*/*.csv
           git add polls/elabe_*/mining_anomalie_*.txt || true
+          git add polls.csv
           
           # Check if there are changes to commit
           if git diff --staged --quiet; then
