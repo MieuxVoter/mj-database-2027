@@ -15,43 +15,37 @@ from .config import MONTH_MAP
 def _get_filtered_soup_for_main_article(soup: BeautifulSoup) -> BeautifulSoup:
     """
     Create a filtered BeautifulSoup object with related articles sections removed.
-    
-    The IPSOS page contains "Sur le même sujet" and "Articles liés" sections that 
+
+    The IPSOS page contains "Sur le même sujet" and "Articles liés" sections that
     link to other polls with their own dates. We need to exclude these to avoid
     extracting dates from the wrong poll.
     """
     soup_copy = BeautifulSoup(str(soup), "html.parser")
-    
+
     # Remove common related articles sections by their headings
-    related_headings = [
-        "Sur le même sujet",
-        "Articles liés", 
-        "Articles similaires",
-        "Voir aussi",
-        "Lire aussi"
-    ]
-    
+    related_headings = ["Sur le même sujet", "Articles liés", "Articles similaires", "Voir aussi", "Lire aussi"]
+
     for heading_text in related_headings:
         for element in soup_copy.find_all(string=re.compile(heading_text, re.IGNORECASE)):
             # Navigate up to find the containing section
             parent = element.find_parent()
             while parent:
-                if parent.name in ['section', 'aside', 'div']:
+                if parent.name in ["section", "aside", "div"]:
                     parent_text_preview = parent.get_text()[:300].lower()
                     if any(h.lower() in parent_text_preview for h in related_headings):
                         parent.decompose()
                         break
                 parent = parent.find_parent()
-                if parent and parent.name in ['body', 'html', 'main']:
+                if parent and parent.name in ["body", "html", "main"]:
                     break
-    
+
     return soup_copy
 
 
 def extract_publication_date(soup: BeautifulSoup) -> Optional[str]:
     """
     Try to extract the publication date from the IPSOS page.
-    
+
     This function first filters out related articles sections to avoid
     picking up dates from linked articles.
 
@@ -65,18 +59,21 @@ def extract_publication_date(soup: BeautifulSoup) -> Optional[str]:
     # The IPSOS page has "Sur le même sujet" and "Articles liés" sections
     # that contain links to other polls with their own <time> elements
     filtered_soup = _get_filtered_soup_for_main_article(soup)
-    
+
     # Strategy 1: Extract from page title (most reliable for poll month)
     # IPSOS page titles are like: "Baromètre politique... - Décembre 2025 | Ipsos"
     title_element = soup.find("title")
     if title_element:
         title_text = title_element.get_text()
         # Look for "Month YYYY" pattern in title
-        title_month_pattern = r"(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s+(\d{4})"
+        title_month_pattern = (
+            r"(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s+(\d{4})"
+        )
         match = re.search(title_month_pattern, title_text, re.IGNORECASE)
         if match:
             month_name, year = match.groups()
             from .config import MONTH_MAP
+
             month = MONTH_MAP[month_name.lower()]
             # For poll ID purposes, we use the 1st of the month as the date
             # The actual publication date will be found below
@@ -85,7 +82,7 @@ def extract_publication_date(soup: BeautifulSoup) -> Optional[str]:
             title_based_date = title_date.strftime("%Y-%m-%d")
     else:
         title_based_date = None
-    
+
     # Strategy 2: Try to find date in meta tags (most reliable if present)
     date_meta = filtered_soup.find("meta", {"property": "article:published_time"})
     if date_meta and date_meta.get("content"):
@@ -95,7 +92,7 @@ def extract_publication_date(soup: BeautifulSoup) -> Optional[str]:
             return parsed_date.strftime("%Y-%m-%d")
         except:
             pass
-    
+
     # Strategy 3: Find date in <time datetime="..."> elements
     # IPSOS uses multiple formats:
     #   - ISO format: datetime="2025-12-13" (correct)
@@ -103,7 +100,7 @@ def extract_publication_date(soup: BeautifulSoup) -> Optional[str]:
     time_elements = filtered_soup.find_all("time", attrs={"datetime": True})
     for time_element in time_elements:
         datetime_attr = str(time_element.get("datetime", ""))
-        
+
         # Check for ISO date format (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS...)
         if re.match(r"^\d{4}-\d{2}-\d{2}", datetime_attr):
             try:
@@ -113,7 +110,7 @@ def extract_publication_date(soup: BeautifulSoup) -> Optional[str]:
                 return parsed_date.strftime("%Y-%m-%d")
             except:
                 continue
-        
+
         # Check for malformed DD.MM.YY format (common on IPSOS)
         if re.match(r"^\d{1,2}\.\d{1,2}\.\d{2,4}$", datetime_attr):
             try:
@@ -125,7 +122,7 @@ def extract_publication_date(soup: BeautifulSoup) -> Optional[str]:
                 return parsed_date.strftime("%Y-%m-%d")
             except:
                 continue
-    
+
     # Strategy 4: If we found a title-based date, use it as fallback
     if title_based_date:
         return title_based_date
@@ -190,8 +187,8 @@ def extract_publication_date(soup: BeautifulSoup) -> Optional[str]:
 def _get_main_article_text(soup: BeautifulSoup) -> str:
     """
     Extract text from the main article content, excluding related articles sections.
-    
-    Uses _get_filtered_soup_for_main_article to remove "Sur le même sujet" and 
+
+    Uses _get_filtered_soup_for_main_article to remove "Sur le même sujet" and
     "Articles liés" sections, then extracts text.
     """
     # Strategy 1: Find "A propos de ce sondage" section specifically
@@ -205,15 +202,15 @@ def _get_main_article_text(soup: BeautifulSoup) -> str:
                 section_text = container.get_text(separator=" ", strip=True)
                 if "menée du" in section_text.lower():
                     return section_text
-    
+
     # Strategy 2: Use filtered soup (shared filtering logic)
     filtered_soup = _get_filtered_soup_for_main_article(soup)
-    
+
     # Try to find main article element
-    main_article = filtered_soup.find('article') or filtered_soup.find('main')
+    main_article = filtered_soup.find("article") or filtered_soup.find("main")
     if main_article:
         return main_article.get_text(separator=" ", strip=True)
-    
+
     # Fallback: return full filtered text
     return filtered_soup.get_text(separator=" ", strip=True)
 
