@@ -85,7 +85,8 @@ jobs:
             if [ -n "$LATEST_POLL" ]; then
               POLL_ID=$(basename "$LATEST_POLL")
               echo "poll_id=$POLL_ID" >> $GITHUB_OUTPUT
-              echo "poll_path=$LATEST_POLL" >> $GITHUB_OUTPUT
+              # Use repo-relative path (not relative to scraping/scraping_IPSOS/)
+              echo "poll_path=polls/$POLL_ID" >> $GITHUB_OUTPUT
               
               # Get current expected poll ID
               CURRENT_YEAR=$(date +%Y)
