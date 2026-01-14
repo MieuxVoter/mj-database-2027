@@ -190,6 +190,21 @@ def scrape_ipsos_barometer(output_dir: str = "polls", dry_run: bool = False, for
                 print(f"   Sample size: {sample_size or 'Unknown'}")
                 print(f"   Population: {population_description or 'Unknown'}")
 
+                # Validate: warn if survey dates don't match publication month
+                # This can happen when IPSOS doesn't update their methodology section
+                if publication_date and survey_end_date:
+                    from datetime import datetime as dt
+
+                    pub_date = dt.strptime(publication_date, "%Y-%m-%d")
+                    survey_date = dt.strptime(survey_end_date, "%Y-%m-%d")
+                    # Survey should typically be in the same month or previous month
+                    months_diff = (pub_date.year - survey_date.year) * 12 + (pub_date.month - survey_date.month)
+                    if months_diff >= 1:
+                        print(
+                            f"\n   ⚠️  WARNING: Survey dates ({survey_end_date}) are {months_diff} months before publication ({publication_date})"
+                        )
+                        print(f"   ⚠️  IPSOS may not have updated their methodology section - data may be stale!")
+
                 # Check each visualization to find candidate data
                 candidate_viz = None
 

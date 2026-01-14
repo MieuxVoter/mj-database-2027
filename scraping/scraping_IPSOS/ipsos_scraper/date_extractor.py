@@ -12,9 +12,42 @@ from bs4 import BeautifulSoup
 from .config import MONTH_MAP
 
 
+def _get_filtered_soup_for_main_article(soup: BeautifulSoup) -> BeautifulSoup:
+    """
+    Create a filtered BeautifulSoup object with related articles sections removed.
+
+    The IPSOS page contains "Sur le même sujet" and "Articles liés" sections that
+    link to other polls with their own dates. We need to exclude these to avoid
+    extracting dates from the wrong poll.
+    """
+    soup_copy = BeautifulSoup(str(soup), "html.parser")
+
+    # Remove common related articles sections by their headings
+    related_headings = ["Sur le même sujet", "Articles liés", "Articles similaires", "Voir aussi", "Lire aussi"]
+
+    for heading_text in related_headings:
+        for element in soup_copy.find_all(string=re.compile(heading_text, re.IGNORECASE)):
+            # Navigate up to find the containing section
+            parent = element.find_parent()
+            while parent:
+                if parent.name in ["section", "aside", "div"]:
+                    parent_text_preview = parent.get_text()[:300].lower()
+                    if any(h.lower() in parent_text_preview for h in related_headings):
+                        parent.decompose()
+                        break
+                parent = parent.find_parent()
+                if parent and parent.name in ["body", "html", "main"]:
+                    break
+
+    return soup_copy
+
+
 def extract_publication_date(soup: BeautifulSoup) -> Optional[str]:
     """
     Try to extract the publication date from the IPSOS page.
+
+    This function first filters out related articles sections to avoid
+    picking up dates from linked articles.
 
     Args:
         soup: BeautifulSoup object of the page
@@ -22,25 +55,36 @@ def extract_publication_date(soup: BeautifulSoup) -> Optional[str]:
     Returns:
         Date string in YYYY-MM-DD format, or None if not found
     """
-    # Try to find date in <time datetime="..."> element first (most reliable for IPSOS)
-    # The IPSOS page uses <time datetime="2025-12-13">13.12.25</time>
-    # But some elements may have malformed datetime like "13.12.25", so we look for ISO format
-    time_elements = soup.find_all("time", attrs={"datetime": True})
-    for time_element in time_elements:
-        datetime_attr = str(time_element.get("datetime", ""))
-        # Check if it looks like an ISO date (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS...)
-        if re.match(r"^\d{4}-\d{2}-\d{2}", datetime_attr):
-            try:
-                # Handle both "2025-12-13" and "2025-12-13T16:00:00+01:00" formats
-                if "T" in datetime_attr:
-                    datetime_attr = datetime_attr.split("T")[0]
-                parsed_date = datetime.strptime(datetime_attr, "%Y-%m-%d")
-                return parsed_date.strftime("%Y-%m-%d")
-            except:
-                continue
+    # CRITICAL: Filter out related articles sections first
+    # The IPSOS page has "Sur le même sujet" and "Articles liés" sections
+    # that contain links to other polls with their own <time> elements
+    filtered_soup = _get_filtered_soup_for_main_article(soup)
 
-    # Try to find date in meta tags
-    date_meta = soup.find("meta", {"property": "article:published_time"})
+    # Strategy 1: Extract from page title (most reliable for poll month)
+    # IPSOS page titles are like: "Baromètre politique... - Décembre 2025 | Ipsos"
+    title_element = soup.find("title")
+    if title_element:
+        title_text = title_element.get_text()
+        # Look for "Month YYYY" pattern in title
+        title_month_pattern = (
+            r"(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s+(\d{4})"
+        )
+        match = re.search(title_month_pattern, title_text, re.IGNORECASE)
+        if match:
+            month_name, year = match.groups()
+            from .config import MONTH_MAP
+
+            month = MONTH_MAP[month_name.lower()]
+            # For poll ID purposes, we use the 1st of the month as the date
+            # The actual publication date will be found below
+            title_date = datetime(int(year), month, 1)
+            # Don't return yet - try to find exact date, but remember this as fallback
+            title_based_date = title_date.strftime("%Y-%m-%d")
+    else:
+        title_based_date = None
+
+    # Strategy 2: Try to find date in meta tags (most reliable if present)
+    date_meta = filtered_soup.find("meta", {"property": "article:published_time"})
     if date_meta and date_meta.get("content"):
         try:
             date_str = str(date_meta["content"])
@@ -48,6 +92,40 @@ def extract_publication_date(soup: BeautifulSoup) -> Optional[str]:
             return parsed_date.strftime("%Y-%m-%d")
         except:
             pass
+
+    # Strategy 3: Find date in <time datetime="..."> elements
+    # IPSOS uses multiple formats:
+    #   - ISO format: datetime="2025-12-13" (correct)
+    #   - Malformed: datetime="13.12.25" (DD.MM.YY format)
+    time_elements = filtered_soup.find_all("time", attrs={"datetime": True})
+    for time_element in time_elements:
+        datetime_attr = str(time_element.get("datetime", ""))
+
+        # Check for ISO date format (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS...)
+        if re.match(r"^\d{4}-\d{2}-\d{2}", datetime_attr):
+            try:
+                if "T" in datetime_attr:
+                    datetime_attr = datetime_attr.split("T")[0]
+                parsed_date = datetime.strptime(datetime_attr, "%Y-%m-%d")
+                return parsed_date.strftime("%Y-%m-%d")
+            except:
+                continue
+
+        # Check for malformed DD.MM.YY format (common on IPSOS)
+        if re.match(r"^\d{1,2}\.\d{1,2}\.\d{2,4}$", datetime_attr):
+            try:
+                parts = datetime_attr.split(".")
+                day, month, year = int(parts[0]), int(parts[1]), int(parts[2])
+                if year < 100:  # 2-digit year
+                    year += 2000
+                parsed_date = datetime(year, month, day)
+                return parsed_date.strftime("%Y-%m-%d")
+            except:
+                continue
+
+    # Strategy 4: If we found a title-based date, use it as fallback
+    if title_based_date:
+        return title_based_date
 
     # Try to find date in the page content
     # Look for common French date patterns
@@ -62,7 +140,7 @@ def extract_publication_date(soup: BeautifulSoup) -> Optional[str]:
         r"(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s+(\d{4})",
     ]
 
-    text = soup.get_text()
+    text = filtered_soup.get_text()
     for pattern in date_patterns:
         match = re.search(pattern, text, re.IGNORECASE)
         if not match:
@@ -106,6 +184,37 @@ def extract_publication_date(soup: BeautifulSoup) -> Optional[str]:
     return None
 
 
+def _get_main_article_text(soup: BeautifulSoup) -> str:
+    """
+    Extract text from the main article content, excluding related articles sections.
+
+    Uses _get_filtered_soup_for_main_article to remove "Sur le même sujet" and
+    "Articles liés" sections, then extracts text.
+    """
+    # Strategy 1: Find "A propos de ce sondage" section specifically
+    # This section contains the survey methodology info we need
+    about_heading = soup.find(string=re.compile(r"A propos de ce sondage", re.IGNORECASE))
+    if about_heading:
+        parent = about_heading.find_parent()
+        if parent:
+            container = parent.find_parent()
+            if container:
+                section_text = container.get_text(separator=" ", strip=True)
+                if "menée du" in section_text.lower():
+                    return section_text
+
+    # Strategy 2: Use filtered soup (shared filtering logic)
+    filtered_soup = _get_filtered_soup_for_main_article(soup)
+
+    # Try to find main article element
+    main_article = filtered_soup.find("article") or filtered_soup.find("main")
+    if main_article:
+        return main_article.get_text(separator=" ", strip=True)
+
+    # Fallback: return full filtered text
+    return filtered_soup.get_text(separator=" ", strip=True)
+
+
 def extract_survey_metadata(soup: BeautifulSoup) -> Dict[str, str]:
     """
     Extract survey metadata from the 'A propos de ce sondage' section.
@@ -123,8 +232,8 @@ def extract_survey_metadata(soup: BeautifulSoup) -> Dict[str, str]:
     """
     metadata: Dict[str, str] = {}
 
-    # Look for the survey information in the page text
-    text = soup.get_text()
+    # Get text from main article, excluding related articles sections
+    text = _get_main_article_text(soup)
 
     # Pattern: "menée du X au Y MONTH YEAR"
     date_range_pattern = r"menée du (\d{1,2}) au (\d{1,2})\s+(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s+(\d{4})"
