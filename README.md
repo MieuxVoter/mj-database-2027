@@ -4,8 +4,8 @@
 ![ELABE Polls](https://img.shields.io/badge/ELABE-11_sondages-green)
 ![IFOP Polls](https://img.shields.io/badge/IFOP-5_sondages-orange)
 ![ODOXA Polls](https://img.shields.io/badge/ODOXA-0_sondages-red)
-![Cluster17 Polls](https://img.shields.io/badge/Cluster17-0_sondages-purple)
-![Total Polls](https://img.shields.io/badge/Total-37_sondages-brightgreen)
+![Cluster17 Polls](https://img.shields.io/badge/Cluster17-1_sondages-purple)
+![Total Polls](https://img.shields.io/badge/Total-38_sondages-brightgreen)
 
 ## À propos
 
