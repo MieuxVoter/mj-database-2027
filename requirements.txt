@@ -1,6 +1,6 @@
 numpy==2.0.2
 pandas==2.3.3
-black==25.11.0
+black==26.1.0
 hypothesis==6.140.3
 pdfminer==20191125
 pdfminer.six==20251107

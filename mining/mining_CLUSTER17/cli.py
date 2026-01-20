@@ -8,7 +8,6 @@ from core.utils.helpers import valid_date
 from core.models.population import Population
 from mining.mining_CLUSTER17.orchestrator import Cluster17Pipeline
 
-
 # Population de Cluster 17
 POPULATION = Population.by_survey("CLUSTER17")
 
