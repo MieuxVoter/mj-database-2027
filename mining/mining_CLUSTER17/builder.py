@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 import pandas as pd
 from typing import Dict, Any
-from core.helpers import normalize, survey_exists
+from core.utils.helpers import normalize, survey_exists
 from mining.mining_CLUSTER17.anomaly_detector import AnomalyDetector
 
 
@@ -65,7 +65,7 @@ class CSVBuilder:
 
         self.path: Path = path
         self.poll_type: str = poll_type
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = logging.getLogger(__name__)
         self._validate_inputs()
 
     def _validate_inputs(self) -> None:

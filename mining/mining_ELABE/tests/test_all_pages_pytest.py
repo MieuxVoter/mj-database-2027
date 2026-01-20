@@ -13,7 +13,6 @@ sys.path.insert(0, str(parent_dir))
 
 from test_elabe_extraction import extract_candidates_and_scores
 
-
 PDF_PATH = pathlib.Path(__file__).parent.parent.parent / "polls" / "elabe_202511" / "source.pdf"
 
 
