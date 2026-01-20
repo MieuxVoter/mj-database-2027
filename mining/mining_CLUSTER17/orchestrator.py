@@ -24,7 +24,7 @@ class Cluster17Pipeline(BasePipeline):
         """
 
         super().__init__(pdf_path, poll_type)
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = logging.getLogger(__name__)
 
     def extract(self) -> tuple[Dict[str, Any], List[Dict[str, Any]]]:
         """

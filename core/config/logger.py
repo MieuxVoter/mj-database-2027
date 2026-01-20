@@ -1,25 +1,19 @@
-from enum import Enum
 from logging.config import dictConfig
+from core.config.settings import Settings
 
 
-class LogLevel(str, Enum):
-    DEBUG = "DEBUG"
-    INFO = "INFO"
-    WARNING = "WARNING"
-    ERROR = "ERROR"
-    CRITICAL = "CRITICAL"
-
-
-def setup_logging(settings=None) -> None:
+def setup_logging(settings: Settings | None = None) -> None:
 
     # Define different format if it is DEBUG or not to see
     # more details on the log
-    LOG_LEVEL = LogLevel.INFO
+    settings = settings or Settings()
+    LOG_LEVEL = settings.LOG_LEVEL
 
-    if LOG_LEVEL == LogLevel.DEBUG:
-        log_format = "%(log_color)s [%(levelname)s] (%(module)s): %(message)s"
-    else:
-        log_format = "%(log_color)s [%(levelname)s]: %(message)s"
+    log_format = (
+        "%(log_color)s [%(levelname)s] (%(module)s): %(message)s"
+        if LOG_LEVEL.value == "DEBUG"
+        else "%(log_color)s [%(levelname)s]: %(message)s"
+    )
 
     LOGGING_CONFIG = {
         "version": 1,
@@ -28,8 +22,6 @@ def setup_logging(settings=None) -> None:
             # Colors on console
             "colored": {
                 "()": "colorlog.ColoredFormatter",
-                # "format": "%(log_color)s[%(asctime)s] [%(levelname)-8s] (%(module)s): %(message)s",
-                # "datefmt": "%Y-%m-%d %H:%M:%S",
                 "format": log_format,
                 "log_colors": {
                     "DEBUG": "cyan",
@@ -54,15 +46,9 @@ def setup_logging(settings=None) -> None:
         },
         "loggers": {
             # Main logger
-            # "app": {
-            #     "handlers": ["console"],
-            #     "level": LOG_LEVEL.name,
-            #     "propagate": False,
-            # },
-            "root": {  # <-- ahora se configura el logger raíz
-                "handlers": ["console"],
-                "level": LOG_LEVEL.name,
-            },
+            "core": {"handlers": ["console"], "level": LOG_LEVEL.name, "propagate": False},
+            "mining": {"handlers": ["console"], "level": LOG_LEVEL.name, "propagate": False},
+            "__main__": {"handlers": ["console"], "level": LOG_LEVEL.name, "propagate": False},
         },
     }
 

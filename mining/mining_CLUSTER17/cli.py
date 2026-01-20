@@ -2,10 +2,12 @@ import sys
 import pathlib
 import argparse
 import logging
-from core.settings.logger import setup_logging
-from core.helpers import valid_date
-from core.population import Population
+from core.config.settings import get_settings
+from core.config.logger import setup_logging
+from core.utils.helpers import valid_date
+from core.models.population import Population
 from mining.mining_CLUSTER17.orchestrator import Cluster17Pipeline
+
 
 # Population de Cluster 17
 POPULATION = Population.by_survey("CLUSTER17")
@@ -13,8 +15,8 @@ POPULATION = Population.by_survey("CLUSTER17")
 
 def main():
 
-    setup_logging()
-    logger = logging.getLogger("cluster17.cli")
+    setup_logging(get_settings(LOG_LEVEL="INFO"))
+    logger = logging.getLogger(__name__)
 
     parser = argparse.ArgumentParser(
         prog="Cluser17 mining",
