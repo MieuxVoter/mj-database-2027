@@ -1,0 +1,5 @@
+poll_id: elabe_202602
+publication_date: 2026-02-01
+page_url: https://elabe.fr/lobservatoire-politique-fevrier-2026/
+pdf_url: https://elabe.fr/wp-content/uploads/2026/02/20260205_elabe_les-echos_observatoire-politique-1.pdf
+source_file: source.pdf
