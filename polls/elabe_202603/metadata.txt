@@ -1,0 +1,5 @@
+poll_id: elabe_202603
+publication_date: 2026-03-05
+page_url: https://elabe.fr/lobservatoire-politique-mars-2026/
+pdf_url: https://elabe.fr/wp-content/uploads/2026/03/20260305_les_echos_observatoire-politique.pdf
+source_file: source.pdf
