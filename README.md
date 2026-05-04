@@ -2,10 +2,10 @@
 
 ![IPSOS Polls](https://img.shields.io/badge/IPSOS-21_sondages-blue)
 ![ELABE Polls](https://img.shields.io/badge/ELABE-11_sondages-green)
-![IFOP Polls](https://img.shields.io/badge/IFOP-21_sondages-orange)
+![IFOP Polls](https://img.shields.io/badge/IFOP-22_sondages-orange)
 ![ODOXA Polls](https://img.shields.io/badge/ODOXA-0_sondages-red)
 ![Cluster17 Polls](https://img.shields.io/badge/Cluster17-1_sondages-purple)
-![Total Polls](https://img.shields.io/badge/Total-54_sondages-brightgreen)
+![Total Polls](https://img.shields.io/badge/Total-55_sondages-brightgreen)
 
 ## À propos
 
