@@ -9,8 +9,8 @@ from datetime import date
 from tabulate import tabulate
 from pdfminer.layout import LTTextContainer
 from pdfminer.high_level import extract_pages
-from core.helpers import normalize
-from core.population import Population
+from core.utils.helpers import normalize
+from core.models.population import Population
 
 
 class PDFExtractor:
@@ -57,7 +57,7 @@ class PDFExtractor:
                 Population ou sous-échantillon concerné (ex. Population.LFI)
         """
         self.pdf_path: Path = pdf_path
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = logging.getLogger(__name__)
         self._validate_inputs()
 
     def _validate_inputs(self) -> None:

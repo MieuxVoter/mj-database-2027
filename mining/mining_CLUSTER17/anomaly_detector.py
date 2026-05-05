@@ -3,7 +3,7 @@ import pandas as pd
 import pathlib
 from pathlib import Path
 from typing import Dict, Any
-from core.helpers import normalize_to_100
+from core.utils.helpers import normalize_to_100
 
 
 class AnomalyDetector:
@@ -32,7 +32,8 @@ class AnomalyDetector:
         """
         self.df: pd.DataFrame = df.copy()
         self.path: Path = path
-        self.logger = logging.getLogger(self.__class__.__name__)
+        # self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = logging.getLogger(__name__)
         self._validate_inputs()
 
     def _validate_inputs(self) -> None:

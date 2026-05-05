@@ -1,6 +1,6 @@
 import re
 from enum import Enum
-from core.helpers import normalize
+from core.utils.helpers import normalize
 
 
 class Population(str, Enum):
